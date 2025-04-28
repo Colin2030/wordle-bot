@@ -16,3 +16,7 @@ Thumbs.db
 
 # PM2 ecosystem files (optional if you ever generate one)
 ecosystem.config.js
+BOTAPIKey.txt
+Wordlebot.env
+Wordlebot.txt
+
