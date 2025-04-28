@@ -1,0 +1,18 @@
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+
+# Google API credentials
+credentials.json
+
+# Logs (if any)
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
+
+# PM2 ecosystem files (optional if you ever generate one)
+ecosystem.config.js
