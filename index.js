@@ -1,11 +1,16 @@
-// index.js
-const fs = require('fs');
+
+ // index.js
+
+// 🔐 Decode credentials from environment before anything else
 if (process.env.GOOGLE_CREDENTIALS_B64) {
   fs.writeFileSync(
     './credentials.json',
     Buffer.from(process.env.GOOGLE_CREDENTIALS_B64, 'base64')
   );
 }
+
+// ✅ NOW it's safe to require it
+const creds = require('./credentials.json');
  
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
@@ -17,7 +22,6 @@ const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 const sheetId = process.env.GOOGLE_SHEET_ID;
 const groupChatId = process.env.GROUP_CHAT_ID;
 
-const creds = require('./credentials.json');
 const auth = new google.auth.GoogleAuth({
   credentials: creds,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"]
