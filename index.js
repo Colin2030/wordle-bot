@@ -1,37 +1,50 @@
-// index.js
-
-console.log("🔎 Raw B64:", process.env.GOOGLE_CREDENTIALS_B64?.slice(0, 30) || "NOT SET");
-
+// index.js — FULL CLEANED AND RESTORED VERSION
+// Webhook-enabled version of the Wordle Telegram bot
 const fs = require('fs');
+const express = require('express');
+const app = express();
+app.use(express.json());
 
-if (process.env.GOOGLE_CREDENTIALS_B64) {
-  fs.writeFileSync(
-    './credentials.json',
-    Buffer.from(process.env.GOOGLE_CREDENTIALS_B64, 'base64')
-  );
-  console.log("✅ credentials.json written from env var");
-} else {
-  console.error("❌ GOOGLE_CREDENTIALS_B64 is missing! Cannot create credentials.json");
-}
-
-// ✅ NOW safely load the JSON
-const creds = JSON.parse(fs.readFileSync('./credentials.json', 'utf8'));
- 
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const { google } = require('googleapis');
 const cron = require('node-cron');
 const { reactions, mildInsults } = require('./phrases');
 
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
-const sheetId = process.env.GOOGLE_SHEET_ID;
-const groupChatId = process.env.GROUP_CHAT_ID;
+// Decode and save credentials.json from base64 env var
+if (process.env.GOOGLE_CREDENTIALS_B64) {
+  fs.writeFileSync(
+    './credentials.json',
+    Buffer.from(process.env.GOOGLE_CREDENTIALS_B64, 'base64')
+  );
+}
+const creds = JSON.parse(fs.readFileSync('./credentials.json', 'utf8'));
 
+// Setup Google Sheets API
 const auth = new google.auth.GoogleAuth({
   credentials: creds,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"]
 });
 const sheets = google.sheets({ version: 'v4', auth });
+
+const sheetId = process.env.GOOGLE_SHEET_ID;
+const groupChatId = process.env.GROUP_CHAT_ID;
+
+// Setup Telegram bot with webhook
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN);
+bot.setWebHook(`${process.env.BASE_URL}/bot${process.env.TELEGRAM_BOT_TOKEN}`);
+
+// Webhook endpoint
+app.post(`/bot${process.env.TELEGRAM_BOT_TOKEN}`, (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
+
+// Start Express server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Webhook server listening on port ${PORT}`);
+});
 
 const memes = [
   "https://i.imgur.com/BxW5S20.gif",
@@ -106,8 +119,8 @@ async function getAllScores() {
 function getTitle(score) {
   if (score >= 50) return "Wordle Grandmaster";
   if (score >= 40) return "Wordle Wizard";
-  if (score >= 30) return "Wordle Warrior";
-  return "Wordle Noob";
+  if (score >= 30) return "Brainiac";
+  return "Wordle Warrior";
 }
 
 async function isMonthlyChampion(player) {
@@ -569,7 +582,7 @@ cron.schedule('0 20 * * 0', async () => {
   monday.setHours(0, 0, 0, 0);
 
   // Capture today's leaderboard
-  const now2 = new Date();
+  const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const todayScores = {};
 
