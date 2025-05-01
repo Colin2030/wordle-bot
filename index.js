@@ -2,12 +2,14 @@
 // index.js
 const fs = require('fs');
 
-// 🔐 Decode credentials from Base64 and write to file before loading
 if (process.env.GOOGLE_CREDENTIALS_B64) {
   fs.writeFileSync(
     './credentials.json',
     Buffer.from(process.env.GOOGLE_CREDENTIALS_B64, 'base64')
   );
+  console.log("✅ credentials.json written from env var");
+} else {
+  console.error("❌ GOOGLE_CREDENTIALS_B64 is missing! Cannot create credentials.json");
 }
 
 // ✅ NOW safely load the JSON
