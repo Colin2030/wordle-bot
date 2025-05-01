@@ -1,21 +1,20 @@
-// index.js
+// index.js 
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const { google } = require('googleapis');
-const fs = require('fs');
 const cron = require('node-cron');
+const { reactions, mildInsults } = require('./phrases');
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 const sheetId = process.env.GOOGLE_SHEET_ID;
-const creds = require('./credentials.json');
+const groupChatId = process.env.GROUP_CHAT_ID;
 
+const creds = require('./credentials.json');
 const auth = new google.auth.GoogleAuth({
   credentials: creds,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"]
 });
 const sheets = google.sheets({ version: 'v4', auth });
-
-const groupChatId = process.env.GROUP_CHAT_ID;
 
 const memes = [
   "https://i.imgur.com/BxW5S20.gif",
@@ -26,44 +25,45 @@ const memes = [
 ];
 
 const victoryMemes = [
-  "https://i.imgur.com/zzp1ZyC.gif",  // Celebration dance
-  "https://i.imgur.com/bN8BzAU.gif",  // Epic fireworks
-  "https://i.imgur.com/Dn2h5Eh.gif",  // We are the champions
-  "https://i.imgur.com/F1Yo5c5.gif",  // Party time
-  "https://i.imgur.com/XgPfUj7.gif",  // Victory lap
-  "https://i.imgur.com/kzStVnJ.gif",  // Bowing down to the winner
+  "https://i.imgur.com/bN8BzAU.gif",
+  "https://i.imgur.com/XgPfUj7.gif",
+  "https://i.imgur.com/Dn2h5Eh.gif",
+  "https://i.imgur.com/F1Yo5c5.gif",
+  "https://i.imgur.com/kzStVnJ.gif"
 ];
 
+function getLocalDateString(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
-// Helper functions
 async function logScore(player, score, wordleNumber, attempts) {
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const now = new Date();
+  const today = getLocalDateString(now);
 
-  const existingScores = await getAllScores();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const yesterdayString = getLocalDateString(yesterday);
 
-  // Find yesterday's entry for this player
-  const yesterdayEntry = existingScores.find(([date, p]) => date === yesterday && p === player);
+  const allScores = await getAllScores();
 
-  let currentStreak = 1; // default if no yesterday match
+  const yesterdayEntry = allScores.find(([date, p]) => date === yesterdayString && p === player);
+  const playerEntries = allScores.filter(([_, p]) => p === player);
+
+  let currentStreak = 1;
   let maxStreak = 1;
 
-  // Look back at the latest entry for this player
-  const playerEntries = existingScores.filter(([_, p]) => p === player);
   if (playerEntries.length > 0) {
     const lastEntry = playerEntries[playerEntries.length - 1];
-    maxStreak = parseInt(lastEntry[6] || '1'); // last max streak saved in column 7
+    maxStreak = parseInt(lastEntry[6] || '1'); // column 7 (max streak)
     if (yesterdayEntry) {
-      // They posted yesterday — continue the streak
-      currentStreak = parseInt(lastEntry[5] || '1') + 1; // column 6
+      currentStreak = parseInt(lastEntry[5] || '1') + 1; // column 6 (current streak)
     } else {
-      // Missed a day — reset streak
       currentStreak = 1;
     }
   }
 
   if (currentStreak > maxStreak) {
-    maxStreak = currentStreak; // Update if new record
+    maxStreak = currentStreak;
   }
 
   await sheets.spreadsheets.values.append({
@@ -76,7 +76,6 @@ async function logScore(player, score, wordleNumber, attempts) {
   });
 }
 
-
 async function getAllScores() {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId,
@@ -87,125 +86,71 @@ async function getAllScores() {
   return rows;
 }
 
-const reactions = [
-  "🔥 Legend!",
-  "🎯 Sharpshooter!",
-  "😬 That was close!",
-  "🎉 Nice one!",
-  "🧠 Big brain move!"
-];
-
 function getTitle(score) {
-  if (score >= 30) return "Wordle Grandmaster";
-  if (score >= 20) return "Wordle Wizard";
-  if (score >= 10) return "Brainiac";
-  return "Wordle Warrior";
+  if (score >= 50) return "Wordle Grandmaster";
+  if (score >= 40) return "Wordle Wizard";
+  if (score >= 30) return "Wordle Warrior";
+  return "Wordle Noob";
 }
 
 async function isMonthlyChampion(player) {
   const now = new Date();
-  const monthString = `${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`;
-
-  try {
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range: 'MonthlyWinners!A:B'
-    });
-
-    const rows = res.data.values || [];
-
-    for (const [monthYear, championName] of rows) {
-      if (monthYear === monthString && championName === player) {
-        return true;
-      }
-    }
-
-    return false;
-  } catch (error) {
-    console.error('Error checking monthly champion:', error);
-    return false;
-  }
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`;
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: 'MonthlyWinners!A:B'
+  });
+  const rows = res.data.values || [];
+  return rows.some(([month, winner]) => month === monthKey && winner === player);
 }
 
-// Handle incoming Wordle results
 bot.on('message', async (msg) => {
-  if (!msg.text) return;
   const chatId = msg.chat.id;
   if (String(chatId) !== String(groupChatId)) return;
+  if (!msg.text) return;
 
   const cleanText = msg.text.replace(/,/g, '').trim();
-  const wordleRegex = /Wordle\s(\d+)\s([1-6X])\/6\*?/;
-  const match = cleanText.match(wordleRegex);
+  const match = cleanText.match(/Wordle\s(\d+)\s([1-6X])\/6\*?/);
+  if (!match) return;
 
- if (match) {
   const wordleNumber = parseInt(match[1]);
-  let attempts = match[2];
-  
+  const attempts = match[2];
   const player = msg.from.first_name || 'Unknown';
   const now = new Date();
+  const isFriday = now.getUTCDay() === 5;
+  const numAttempts = attempts === 'X' ? 7 : parseInt(attempts);
+
+  const gridRegex = /([⬛⬜🟨🟩]{5}\n?)+/g;
+  const gridMatch = cleanText.match(gridRegex);
+
   let finalScore = 0;
-
-  if (attempts === 'X') {
-    finalScore = 0; // No points if they fail
-  } else {
-    const numAttempts = parseInt(attempts);
-
-    // Solve bonus based on number of attempts
-    let solveBonus = 0;
-    switch (numAttempts) {
-      case 1: solveBonus = 50; break;
-      case 2: solveBonus = 40; break;
-      case 3: solveBonus = 30; break;
-      case 4: solveBonus = 20; break;
-      case 5: solveBonus = 10; break;
-      case 6: solveBonus = 5; break;
-      default: solveBonus = 0;
-    }
-
-    finalScore = solveBonus;
-
-    // Tile counting
-    const gridRegex = /([⬛⬜🟨🟩]{5}\n?)+/g;
-    const gridMatch = cleanText.match(gridRegex);
+  if (attempts !== 'X') {
+    const base = [0, 50, 40, 30, 20, 10, 5];
+    finalScore += base[numAttempts];
 
     if (gridMatch) {
       const gridText = gridMatch.join('');
       const greens = (gridText.match(/🟩/g) || []).length;
       const yellows = (gridText.match(/🟨/g) || []).length;
-
-      // Small tile bonus with a cap
-      const rawTileBonus = (greens * 1) + (yellows * 0.5);
-      const tileBonus = Math.min(rawTileBonus, 10); // Cap bonus to 10 points max
-
+      const tileBonus = Math.min(greens * 1 + yellows * 0.5, 10);
       finalScore += tileBonus;
     }
-  }
 
-  // Friday bonus (Double points)
-  if (now.getUTCDay() === 5) {
-    finalScore *= 2;
+    if (isFriday) finalScore *= 2;
   }
 
   await logScore(player, Math.round(finalScore), wordleNumber, attempts);
-
+  const reaction = reactions[Math.floor(Math.random() * reactions.length)];
   const title = getTitle(Math.round(finalScore));
-  
-  // Reactions depending on final score
-  let reaction = reactions[Math.floor(Math.random() * reactions.length)];
-  if (finalScore >= 60) reaction = "🚀 Wordle God!";
-  else if (finalScore >= 50) reaction = "🏅 Incredible mind!";
-  else if (finalScore >= 40) reaction = "🎯 Super Solver!";
+  const isChampion = await isMonthlyChampion(player);
+  const trophy = isChampion ? ' 🏆' : '';
 
-const isChampion = await isMonthlyChampion(player);
-const trophy = isChampion ? ' 🏆' : '';
-
-bot.sendMessage(chatId, `${player}${trophy} (${title}) scored ${Math.round(finalScore)} points! ${reaction}`);
-
-
-  if (finalScore >= 50) {
-    bot.sendMessage(chatId, `🏆 ${player} achieved a personal best! Champion energy!`);
+  if (Math.round(finalScore) === 0) {
+    const insult = mildInsults[Math.floor(Math.random() * mildInsults.length)];
+    bot.sendMessage(chatId, `${insult} ${player}${trophy} scored 0 points. Better luck next time!`);
+  } else {
+    bot.sendMessage(chatId, `${player}${trophy} (${title}) scored ${Math.round(finalScore)} points! ${reaction}`);
   }
-}
 });
 
 // /ping
@@ -220,7 +165,8 @@ bot.onText(/\/leaderboard(@\w+)?/, async (msg) => {
   const chatId = msg.chat.id;
   if (String(chatId) !== String(groupChatId)) return;
   const scores = await getAllScores();
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const leaderboard = {};
 
   for (const [date, player, score] of scores) {
@@ -252,27 +198,18 @@ bot.onText(/\/weeklyleaderboard(@\w+)?/, async (msg) => {
 
   const scores = await getAllScores();
   const now = new Date();
+
+  // Set Monday of this week
   const monday = new Date(now);
-  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7)); // Adjust for Monday start
   monday.setHours(0, 0, 0, 0);
-
-  // Capture today's leaderboard
-  const today = new Date().toISOString().split('T')[0];
-  const todayScores = {};
-
-  for (const [date, player, score] of scores) {
-    if (date === today) {
-      todayScores[player] = (todayScores[player] || 0) + parseInt(score);
-    }
-  }
-
-  const sortedToday = Object.entries(todayScores).sort((a, b) => b[1] - a[1]);
-  const todayTopPlayers = sortedToday.length > 0 ? sortedToday.filter(([_, score]) => score === sortedToday[0][1]).map(([player]) => player) : [];
 
   const leaderboard = {};
 
   for (const [date, player, score] of scores) {
     const entryDate = new Date(date);
+    entryDate.setHours(0, 0, 0, 0);
+
     if (entryDate >= monday && entryDate <= now) {
       leaderboard[player] = (leaderboard[player] || 0) + parseInt(score);
     }
@@ -290,9 +227,7 @@ bot.onText(/\/weeklyleaderboard(@\w+)?/, async (msg) => {
       else if (index === 1) medal = '🥈';
       else if (index === 2) medal = '🥉';
 
-      let crown = todayTopPlayers.includes(player) ? ' 👑' : '';
-
-      text += `${index + 1}. ${medal} ${player}${crown}: ${score} pts\n`;
+      text += `${index + 1}. ${medal} ${player}: ${score} pts\n`;
     });
   }
 
@@ -300,12 +235,14 @@ bot.onText(/\/weeklyleaderboard(@\w+)?/, async (msg) => {
 });
 
 
+
 // /myrank
 bot.onText(/\/myrank(@\w+)?/, async (msg) => {
   const chatId = msg.chat.id;
   if (String(chatId) !== String(groupChatId)) return;
   const scores = await getAllScores();
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   const leaderboard = {};
   const streaks = {}; // { player: [currentStreak, maxStreak] }
@@ -339,11 +276,14 @@ bot.onText(/\/monthlyleaderboard(@\w+)?/, async (msg) => {
   const scores = await getAllScores();
   const now = new Date();
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  firstOfMonth.setHours(0, 0, 0, 0);
 
   const leaderboard = {};
 
   for (const [date, player, score] of scores) {
     const entryDate = new Date(date);
+    entryDate.setHours(0, 0, 0, 0);
+
     if (entryDate >= firstOfMonth && entryDate <= now) {
       leaderboard[player] = (leaderboard[player] || 0) + parseInt(score);
     }
@@ -355,8 +295,7 @@ bot.onText(/\/monthlyleaderboard(@\w+)?/, async (msg) => {
   if (sorted.length === 0) {
     text += `No scores recorded yet this month! Start Wordling! 🎯`;
   } else {
-    const topScore = sorted.length > 0 ? sorted[0][1] : 0;
-
+    const topScore = sorted[0][1];
     sorted.forEach(([player, score], index) => {
       let medal = '';
       if (index === 0) medal = '🏆';
@@ -374,6 +313,7 @@ bot.onText(/\/monthlyleaderboard(@\w+)?/, async (msg) => {
 
   bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
 });
+
 
 
 // /rules
@@ -475,33 +415,94 @@ bot.on('new_chat_members', (msg) => {
 });
 
 
-// Daily winner announcement at 9AM
+// Daily top 3 announcement with accurate local-date filtering and streak tracking
 cron.schedule('0 9 * * *', async () => {
   const scores = await getAllScores();
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-  const leaderboard = {};
+
+  const now = new Date();
+  const yesterday = new Date(now);
+  const dayBefore = new Date(now);
+  const twoDaysBefore = new Date(now);
+
+  yesterday.setDate(now.getDate() - 1);
+  dayBefore.setDate(now.getDate() - 2);
+  twoDaysBefore.setDate(now.getDate() - 3);
+
+  // Normalize to midnight (local time)
+  yesterday.setHours(0, 0, 0, 0);
+  dayBefore.setHours(0, 0, 0, 0);
+  twoDaysBefore.setHours(0, 0, 0, 0);
+
+  const leaderboardYesterday = {};
+  const leaderboardDayBefore = {};
+  const leaderboardTwoDaysBefore = {};
 
   for (const [date, player, score] of scores) {
-    if (date === yesterday) {
-      leaderboard[player] = (leaderboard[player] || 0) + parseInt(score);
+    const entryDate = new Date(date);
+    entryDate.setHours(0, 0, 0, 0); // normalize for date-only compare
+
+    if (entryDate.getTime() === yesterday.getTime()) {
+      leaderboardYesterday[player] = (leaderboardYesterday[player] || 0) + parseInt(score);
+    }
+    if (entryDate.getTime() === dayBefore.getTime()) {
+      leaderboardDayBefore[player] = (leaderboardDayBefore[player] || 0) + parseInt(score);
+    }
+    if (entryDate.getTime() === twoDaysBefore.getTime()) {
+      leaderboardTwoDaysBefore[player] = (leaderboardTwoDaysBefore[player] || 0) + parseInt(score);
     }
   }
 
-  if (Object.keys(leaderboard).length === 0) return;
+  if (Object.keys(leaderboardYesterday).length === 0) {
+    return;
+  }
 
-  const sorted = Object.entries(leaderboard).sort((a, b) => b[1] - a[1]);
-  const winners = sorted.filter(([_, score]) => score === sorted[0][1]);
+  const sortedYesterday = Object.entries(leaderboardYesterday).sort((a, b) => b[1] - a[1]);
+  const sortedDayBefore = Object.entries(leaderboardDayBefore).sort((a, b) => b[1] - a[1]);
+  const sortedTwoDaysBefore = Object.entries(leaderboardTwoDaysBefore).sort((a, b) => b[1] - a[1]);
 
-  let text = `🌟 *Yesterday's Winner(s):*\n\n`;
-  winners.forEach(([player, score]) => {
-    text += `✨ ${player} with ${score} points\n`;
+  const yesterdayWinner = sortedYesterday.length > 0 ? sortedYesterday[0][0] : null;
+  const dayBeforeWinner = sortedDayBefore.length > 0 ? sortedDayBefore[0][0] : null;
+  const twoDaysBeforeWinner = sortedTwoDaysBefore.length > 0 ? sortedTwoDaysBefore[0][0] : null;
+
+  let text = `🌟 *Yesterday's Top Wordlers!* 🌟\n\n`;
+
+  sortedYesterday.forEach(([player, score], index) => {
+    let line = '';
+
+    if (index === 0) {
+      line += `🏆 1st: *${player}* with ${score} pts`;
+
+      if (player === dayBeforeWinner && player === twoDaysBeforeWinner) {
+        line += ` 🔥🔥 _Threepeat Champion!_`;
+      } else if (player === dayBeforeWinner) {
+        line += ` 🔥 _Back-to-Back Champion!_`;
+      }
+
+      line += `\n`;
+    } else if (index === 1) {
+      line += `🥈 2nd: *${player}* with ${score} pts\n`;
+    } else if (index === 2) {
+      line += `🥉 3rd: *${player}* with ${score} pts\n`;
+    }
+
+    text += line;
   });
 
-  bot.sendMessage(groupChatId, text, { parse_mode: 'Markdown' });
+  await bot.sendMessage(groupChatId, text, { parse_mode: 'Markdown' });
+
+  // Optional: Threepeat celebration meme
+  if (yesterdayWinner === dayBeforeWinner && yesterdayWinner === twoDaysBeforeWinner) {
+    const threepeatMemes = [
+      "https://i.imgur.com/bN8BzAU.gif", // Fireworks
+      "https://i.imgur.com/F1Yo5c5.gif", // Party time
+      "https://i.imgur.com/XgPfUj7.gif", // Victory lap
+    ];
+    const gif = threepeatMemes[Math.floor(Math.random() * threepeatMemes.length)];
+    await bot.sendAnimation(groupChatId, gif);
+  }
 });
 
-
-// Weekly champion announcement at Monday 10AM
+  // Weekly champion announcement at Monday 10AM
 cron.schedule('0 10 * * 1', async () => {
   const scores = await getAllScores();
   const now = new Date();
@@ -551,7 +552,8 @@ cron.schedule('0 20 * * 0', async () => {
   monday.setHours(0, 0, 0, 0);
 
   // Capture today's leaderboard
-  const today = new Date().toISOString().split('T')[0];
+  const now2 = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const todayScores = {};
 
   for (const [date, player, score] of scores) {
