@@ -1,7 +1,8 @@
 
- // index.js
+// index.js
+const fs = require('fs');
 
-// 🔐 Decode credentials from environment before anything else
+// 🔐 Decode credentials from Base64 and write to file before loading
 if (process.env.GOOGLE_CREDENTIALS_B64) {
   fs.writeFileSync(
     './credentials.json',
@@ -9,8 +10,8 @@ if (process.env.GOOGLE_CREDENTIALS_B64) {
   );
 }
 
-// ✅ NOW it's safe to require it
-const creds = require('./credentials.json');
+// ✅ NOW safely load the JSON
+const creds = JSON.parse(fs.readFileSync('./credentials.json', 'utf8'));
  
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
