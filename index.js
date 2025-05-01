@@ -582,7 +582,7 @@ cron.schedule('0 20 * * 0', async () => {
   monday.setHours(0, 0, 0, 0);
 
   // Capture today's leaderboard
-  const now = new Date();
+  const currentTime = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const todayScores = {};
 
