@@ -1,4 +1,12 @@
-// index.js 
+// index.js
+const fs = require('fs');
+if (process.env.GOOGLE_CREDENTIALS_B64) {
+  fs.writeFileSync(
+    './credentials.json',
+    Buffer.from(process.env.GOOGLE_CREDENTIALS_B64, 'base64')
+  );
+}
+ 
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const { google } = require('googleapis');
