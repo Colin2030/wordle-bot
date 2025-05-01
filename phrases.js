@@ -19,7 +19,7 @@ const reactions = [
   "Exceptional showing!",
   "You're cooking today!",
   "Spicy guesses — I like it.",
-  "Noice!",
+  "Bangin'!",
   "Back of the net!",
   "Cashback!",
   "Stick that in your performance review!",
