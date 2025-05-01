@@ -1,5 +1,7 @@
-
 // index.js
+
+console.log("🔎 Raw B64:", process.env.GOOGLE_CREDENTIALS_B64?.slice(0, 30) || "NOT SET");
+
 const fs = require('fs');
 
 if (process.env.GOOGLE_CREDENTIALS_B64) {
