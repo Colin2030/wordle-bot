@@ -81,7 +81,7 @@ node final_index.js
 1. Push the repo to GitHub
 2. Create a new **Web Service** on [Render](https://render.com)
 3. Set build command: `npm install`
-4. Set start command: `node final_index.js`
+4. Set start command: `node index.js`
 5. Add all environment variables
 6. Copy your Render URL into `BASE_URL`
 7. Register your webhook:
