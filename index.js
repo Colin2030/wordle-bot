@@ -358,7 +358,8 @@ bot.onText(/\/rules(@\w+)?/, (msg) => {
     + `✅ Points: (6 - attempts) plus bonus points for greens 🟩 and yellows 🟨\n`
     + `✅ Double Points every Friday! 🎉\n`
     + `✅ Daily winner crowned at 9AM 👑\n`
-    + `✅ Weekly champion announced every Monday 🏆\n\n`
+    + `✅ Weekly champion announced every Monday 🏆\n`
+    + `✅ Monthly champion announced on the 1st each month\n\n`
     + `Brag loudly \- lose gracefully \- Wordle fiercely! 🎯`;
 
   bot.sendMessage(chatId, rules, { parse_mode: 'Markdown' });
@@ -419,7 +420,7 @@ bot.onText(/\/about(@\w+)?/, (msg) => {
   const aboutText = `ℹ️ *About This Bot:*\n\n`
     + `Welcome to the legendary Wordle Workers group! 🎉\n\n`
     + `✅ Track your daily Wordle scores\n`
-    + `✅ Battle for daily and weekly glory 🏆\n`
+    + `✅ Battle for daily, weekly and monthly glory 🏆\n`
     + `✅ Celebrate DOUBLE POINTS FRIDAYS! 🎯\n\n`
     + `Built with 💪 by Colin \- with a little help from ChatGPT 🤖\n\n`
     + `Good luck \- and remember: one guess to rule them all! 🎯`;
@@ -562,7 +563,7 @@ cron.schedule('0 10 * * 1', async () => {
 });
 
 // Friday Double Points announcement at 8AM
-cron.schedule('0 8 * * 5', async () => {
+cron.schedule('0 7 * * 5', async () => {
   const meme = memes[Math.floor(Math.random() * memes.length)];
   
   const fridayMessage = `🎉 *DOUBLE POINTS FRIDAY IS LIVE!*\n\n`
