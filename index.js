@@ -455,7 +455,7 @@ bot.on('new_chat_members', (msg) => {
 
 
 // Daily top 3 announcement with accurate local-date filtering and streak tracking
-cron.schedule('0 9 * * *', async () => {
+cron.schedule('0 8 * * *', async () => {
   const scores = await getAllScores();
 
   const now = new Date();
@@ -541,8 +541,8 @@ cron.schedule('0 9 * * *', async () => {
   }
 });
 
-  // Weekly champion announcement at Monday 10AM
-cron.schedule('0 10 * * 1', async () => {
+  // Weekly champion announcement at Monday 9AM
+cron.schedule('0 9 * * 1', async () => {
   const scores = await getAllScores();
   const now = new Date();
   const lastWeek = [];
@@ -568,7 +568,7 @@ cron.schedule('0 10 * * 1', async () => {
   bot.sendMessage(groupChatId, `👑 *Last week's Champion:*\n\n${winner[0]} with ${winner[1]} points! Congratulations! 🎉`, { parse_mode: 'Markdown' });
 });
 
-// Friday Double Points announcement at 8AM
+// Friday Double Points announcement at 7AM
 cron.schedule('0 7 * * 5', async () => {
   const meme = memes[Math.floor(Math.random() * memes.length)];
   
