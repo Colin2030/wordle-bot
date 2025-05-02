@@ -1,5 +1,7 @@
-// index.js — FULL CLEANED AND RESTORED VERSION
-// Webhook-enabled version of the Wordle Telegram bot
+// index.js — FINAL STABLE VERSION
+
+process.env.TZ = 'Europe/London';
+
 const fs = require('fs');
 const express = require('express');
 const app = express();
