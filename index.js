@@ -178,25 +178,25 @@ bot.on('message', async (msg) => {
   }
 
   await logScore(player, Math.round(finalScore), wordleNumber, attempts);
-  let reaction;
+ let reaction;
 try {
   const aiReaction = await generateReaction(Math.round(finalScore), attempts, player);
-  reaction = aiReaction || reactions[Math.floor(Math.random() * reactions.length)];
+  if (aiReaction) {
+    reaction = aiReaction;
+  } else {
+    const attemptKey = attempts === 'X' ? 'X' : parseInt(attempts);
+    reaction = reactionThemes[attemptKey]
+      ? reactionThemes[attemptKey][Math.floor(Math.random() * reactionThemes[attemptKey].length)]
+      : "Nice effort!";
+  }
 } catch (e) {
   console.error("Failed to generate AI reaction:", e);
-  reaction = reactions[Math.floor(Math.random() * reactions.length)];
+  const attemptKey = attempts === 'X' ? 'X' : parseInt(attempts);
+  reaction = reactionThemes[attemptKey]
+    ? reactionThemes[attemptKey][Math.floor(Math.random() * reactionThemes[attemptKey].length)]
+    : "Nice try!";
 }
 
-  const title = getTitle(Math.round(finalScore));
-  const isChampion = await isMonthlyChampion(player);
-  const trophy = isChampion ? ' 🏆' : '';
-
-  if (Math.round(finalScore) === 0) {
-    const insult = mildInsults[Math.floor(Math.random() * mildInsults.length)];
-    bot.sendMessage(chatId, `${insult} ${player}${trophy} scored 0 points. Better luck next time!`);
-  } else {
-    bot.sendMessage(chatId, `${player}${trophy} (${title}) scored ${Math.round(finalScore)} points! ${reaction}`);
-  }
 });
 
 // /ping
