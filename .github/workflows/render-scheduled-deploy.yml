@@ -1,0 +1,13 @@
+name: Scheduled Deploy to Render
+
+on:
+  schedule:
+    - cron: '0 23 * * *'  # Midnight UK time (23:00 UTC)
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Deploy
+        run: |
+          curl -X POST https://api.render.com/deploy/srv-d09nnj6uk2gs73dncbog?key=xbeVsm8LIbc
