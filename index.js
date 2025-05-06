@@ -407,6 +407,7 @@ bot.onText(/\/help(@\w+)?/, (msg) => {
     + `/ping - Check if I'm alive 🏓\n`
     + `/leaderboard - See today's scores 📈\n`
     + `/weeklyleaderboard - See this week's scores 📅\n`
+	+ `/lastweekchamp - See last week's champion 👑\n`
     + `/myrank - See your current rank 🏅\n`
     + `/rules - View the game rules 📜\n`
     + `/scoring - See how points are awarded 🎯\n`
@@ -432,6 +433,43 @@ bot.onText(/\/about(@\w+)?/, (msg) => {
     + `Good luck \- and remember: one guess to rule them all! 🎯`;
 
   bot.sendMessage(chatId, aboutText, { parse_mode: 'Markdown' });
+});
+
+// /lastweekchamp
+bot.onText(/\/lastweekchamp(@\w+)?/, async (msg) => {
+  const chatId = msg.chat.id;
+  if (String(chatId) !== String(groupChatId)) return;
+
+  const scores = await getAllScores();
+  const now = new Date();
+
+  // Get last week's Monday to Sunday
+  const lastMonday = new Date(now);
+  lastMonday.setDate(now.getDate() - ((now.getDay() + 6) % 7) - 7);
+  lastMonday.setHours(0, 0, 0, 0);
+
+  const lastSunday = new Date(lastMonday);
+  lastSunday.setDate(lastSunday.getDate() + 6);
+  lastSunday.setHours(23, 59, 59, 999);
+
+  const leaderboard = {};
+
+  for (const [date, player, score] of scores) {
+    const entryDate = new Date(date);
+    if (entryDate >= lastMonday && entryDate <= lastSunday) {
+      leaderboard[player] = (leaderboard[player] || 0) + parseInt(score);
+    }
+  }
+
+  const sorted = Object.entries(leaderboard).sort((a, b) => b[1] - a[1]);
+
+  if (sorted.length === 0) {
+    bot.sendMessage(chatId, `🤷‍♂️ No scores were recorded last week. Slacking off, were we?`);
+    return;
+  }
+
+  const [winnerName, winnerScore] = sorted[0];
+  bot.sendMessage(chatId, `👑 *Last week's Champion:*\n\n${winnerName} with ${winnerScore} points! Congratulations! 🎉`, { parse_mode: 'Markdown' });
 });
 
 
@@ -541,46 +579,37 @@ cron.schedule('0 8 * * *', async () => {
   }
 });
 
-  // Weekly champion announcement at Monday 9AM
-cron.schedule('0 9 * * 1', async () => {
+  // Weekly champion announcement at Monday 10AM
+cron.schedule('0 10 * * 1', async () => {
   const scores = await getAllScores();
   const now = new Date();
-  const lastWeek = [];
 
-  scores.forEach(([date, player, score]) => {
-    const entryDate = new Date(date);
-    const daysAgo = (now - entryDate) / (1000 * 60 * 60 * 24);
-    if (daysAgo >= 7 && daysAgo < 14) {
-      lastWeek.push([player, parseInt(score)]);
-    }
-  });
+  // Calculate last week's Monday to Sunday range
+  const lastMonday = new Date(now);
+  lastMonday.setDate(now.getDate() - ((now.getDay() + 6) % 7) - 7);
+  lastMonday.setHours(0, 0, 0, 0);
 
-  if (lastWeek.length === 0) return;
+  const lastSunday = new Date(lastMonday);
+  lastSunday.setDate(lastSunday.getDate() + 6);
+  lastSunday.setHours(23, 59, 59, 999);
 
   const leaderboard = {};
-  lastWeek.forEach(([player, score]) => {
-    leaderboard[player] = (leaderboard[player] || 0) + score;
-  });
+
+  for (const [date, player, score] of scores) {
+    const entryDate = new Date(date);
+    if (entryDate >= lastMonday && entryDate <= lastSunday) {
+      leaderboard[player] = (leaderboard[player] || 0) + parseInt(score);
+    }
+  }
 
   const sorted = Object.entries(leaderboard).sort((a, b) => b[1] - a[1]);
-  const winner = sorted[0];
+  if (sorted.length === 0) return;
 
-  bot.sendMessage(groupChatId, `👑 *Last week's Champion:*\n\n${winner[0]} with ${winner[1]} points! Congratulations! 🎉`, { parse_mode: 'Markdown' });
+  const [winnerName, winnerScore] = sorted[0];
+
+  bot.sendMessage(groupChatId, `👑 *Last week's Champion:*\n\n${winnerName} with ${winnerScore} points! Congratulations! 🎉`, { parse_mode: 'Markdown' });
 });
 
-// Friday Double Points announcement at 7AM
-cron.schedule('0 7 * * 5', async () => {
-  const meme = memes[Math.floor(Math.random() * memes.length)];
-  
-  const fridayMessage = `🎉 *DOUBLE POINTS FRIDAY IS LIVE!*\n\n`
-    + `✅ Every green and yellow counts DOUBLE today!\n`
-    + `✅ Outsmart, outguess, outplay your friends 🧠\n`
-    + `✅ Bring your A-game \\- or prepare for humiliation 😬\n\n`
-    + `Post your Wordle scores like your honor depends on it! 🎯`;
-
-  await bot.sendMessage(groupChatId, fridayMessage, { parse_mode: 'Markdown' });
-  await bot.sendAnimation(groupChatId, meme);
-});
 
 // Weekly leaderboard announcement every Sunday at 8PM
 cron.schedule('0 20 * * 0', async () => {
