@@ -46,6 +46,7 @@ const reactionThemes = {
     "Brutal. But we still believe in you. 🥀",
     "Not your day, huh? It happens. 🍵",
     "We’ve all been there. 🫂",
+	"I'm telling Karen",
     "Take a breath and Wordle on. 🌬️",
     "Next time: vengeance. 🗡️"
   ]
