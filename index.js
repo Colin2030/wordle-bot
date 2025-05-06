@@ -157,6 +157,15 @@ bot.on('message', async (msg) => {
   const now = new Date();
   const isFriday = now.getUTCDay() === 5;
   const numAttempts = attempts === 'X' ? 7 : parseInt(attempts);
+  const today = getLocalDateString(now);
+
+  const allScores = await getAllScores();
+  const alreadySubmitted = allScores.some(([date, p]) => date === today && p === player);
+
+  if (alreadySubmitted) {
+    bot.sendMessage(chatId, `🛑 ${player}, you've already submitted your Wordle for today. No cheating! 😜`);
+    return;
+  }
 
   const gridRegex = /([⬛⬜🟨🟩]{5}\n?)+/g;
   const gridMatch = cleanText.match(gridRegex);
@@ -178,25 +187,62 @@ bot.on('message', async (msg) => {
   }
 
   await logScore(player, Math.round(finalScore), wordleNumber, attempts);
- let reaction;
-try {
-  const aiReaction = await generateReaction(Math.round(finalScore), attempts, player);
-  if (aiReaction) {
-    reaction = aiReaction;
-  } else {
+
+  let reaction;
+  try {
+    const aiReaction = await generateReaction(Math.round(finalScore), attempts, player);
+    if (aiReaction) {
+      reaction = aiReaction;
+    } else {
+      const attemptKey = attempts === 'X' ? 'X' : parseInt(attempts);
+      reaction = reactionThemes[attemptKey]
+        ? reactionThemes[attemptKey][Math.floor(Math.random() * reactionThemes[attemptKey].length)]
+        : "Nice effort!";
+    }
+  } catch (e) {
+    console.error("Failed to generate AI reaction:", e);
     const attemptKey = attempts === 'X' ? 'X' : parseInt(attempts);
     reaction = reactionThemes[attemptKey]
       ? reactionThemes[attemptKey][Math.floor(Math.random() * reactionThemes[attemptKey].length)]
-      : "Nice effort!";
+      : "Nice try!";
   }
-} catch (e) {
-  console.error("Failed to generate AI reaction:", e);
-  const attemptKey = attempts === 'X' ? 'X' : parseInt(attempts);
-  reaction = reactionThemes[attemptKey]
-    ? reactionThemes[attemptKey][Math.floor(Math.random() * reactionThemes[attemptKey].length)]
-    : "Nice try!";
-}
 
+  const isChampion = await isMonthlyChampion(player);
+
+  // Check if player was yesterday's winner
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  const yestDate = getLocalDateString(yesterday);
+  const yestScores = allScores.filter(([date]) => date === yestDate);
+  const yestTop = yestScores.reduce((acc, [_, p, s]) => {
+    acc[p] = (acc[p] || 0) + parseInt(s);
+    return acc;
+  }, {});
+  const topYest = Object.entries(yestTop).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const dailyFire = topYest === player ? ' 🔥' : '';
+
+  // Check if player was last week's champion
+  const lastMonday = new Date(now);
+  lastMonday.setDate(now.getDate() - ((now.getDay() + 6) % 7) - 7);
+  lastMonday.setHours(0, 0, 0, 0);
+  const lastSunday = new Date(lastMonday);
+  lastSunday.setDate(lastSunday.getDate() + 6);
+  lastSunday.setHours(23, 59, 59, 999);
+
+  const lastWeekScores = allScores.filter(([date]) => {
+    const entryDate = new Date(date);
+    return entryDate >= lastMonday && entryDate <= lastSunday;
+  });
+  const weeklyTotals = lastWeekScores.reduce((acc, [_, p, s]) => {
+    acc[p] = (acc[p] || 0) + parseInt(s);
+    return acc;
+  }, {});
+  const topWeekly = Object.entries(weeklyTotals).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const weeklyCrown = topWeekly === player ? ' 👑' : '';
+
+  const trophy = isChampion ? ' 🏆' : '';
+
+  bot.sendMessage(chatId, `${player}${trophy}${weeklyCrown}${dailyFire} scored ${Math.round(finalScore)} points! ${reaction}`);
 });
 
 // /ping
