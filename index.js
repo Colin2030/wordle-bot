@@ -178,7 +178,15 @@ bot.on('message', async (msg) => {
   }
 
   await logScore(player, Math.round(finalScore), wordleNumber, attempts);
-  const reaction = reactions[Math.floor(Math.random() * reactions.length)];
+  let reaction;
+try {
+  const aiReaction = await generateReaction(Math.round(finalScore), attempts, player);
+  reaction = aiReaction || reactions[Math.floor(Math.random() * reactions.length)];
+} catch (e) {
+  console.error("Failed to generate AI reaction:", e);
+  reaction = reactions[Math.floor(Math.random() * reactions.length)];
+}
+
   const title = getTitle(Math.round(finalScore));
   const isChampion = await isMonthlyChampion(player);
   const trophy = isChampion ? ' 🏆' : '';
