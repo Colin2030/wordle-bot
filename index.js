@@ -171,20 +171,22 @@ bot.on('message', async (msg) => {
   const gridMatch = cleanText.match(gridRegex);
 
   let finalScore = 0;
-  if (attempts !== 'X') {
-    const base = [0, 50, 40, 30, 20, 10, 5];
-    finalScore += base[numAttempts];
+ if (attempts !== 'X') {
+  const base = [0, 60, 45, 30, 20, 10, 0]; // X = 7
+  finalScore += base[numAttempts];
 
-    if (gridMatch) {
-      const gridText = gridMatch.join('');
-      const greens = (gridText.match(/🟩/g) || []).length;
-      const yellows = (gridText.match(/🟨/g) || []).length;
-      const tileBonus = Math.min(greens * 1 + yellows * 0.5, 10);
-      finalScore += tileBonus;
-    }
+  if (gridMatch) {
+    const gridText = gridMatch.join('');
+    const greens = (gridText.match(/🟩/g) || []).length;
+    const yellows = (gridText.match(/🟨/g) || []).length;
 
-    if (isFriday) finalScore *= 2;
+    const adjustedGreens = Math.max(greens - 5, 0); // remove guaranteed row
+    const tileBonus = Math.min(adjustedGreens * 1 + yellows * 0.5, 10);
+    finalScore += tileBonus;
   }
+
+  if (isFriday) finalScore *= 2;
+}
 
   await logScore(player, Math.round(finalScore), wordleNumber, attempts);
 
@@ -431,24 +433,25 @@ bot.onText(/\/scoring(@\w+)?/, (msg) => {
   if (String(chatId) !== String(groupChatId)) return;
 
   const scoringText = `🎯 *Wordle Scoring Explained!*\n\n`
-    + `✅ Guess the word quicker = More points!\n`
-    + `✅ Bonus points for green 🟩 and yellow 🟨 tiles.\n`
+    + `✅ Fewer guesses = More points!\n`
+    + `✅ Bonus for extra 🟩 and 🟨 (but no freebies for the final row!)\n`
     + `✅ Friday = DOUBLE POINTS! 🎉\n\n`
     + `*Points per Solve:*\n`
-    + `- 1st try: 50 pts 🚀\n`
-    + `- 2nd try: 40 pts 🔥\n`
+    + `- 1st try: 60 pts 🚀\n`
+    + `- 2nd try: 45 pts 🔥\n`
     + `- 3rd try: 30 pts 🎯\n`
     + `- 4th try: 20 pts 🎯\n`
     + `- 5th try: 10 pts 🎯\n`
-    + `- 6th try: 5 pts 🎯\n\n`
+    + `- 6th try: 0 pts 😬\n\n`
     + `*Tile Bonus:*\n`
-    + `- +1 point per 🟩\n`
+    + `- +1 point per 🟩 (excluding final row)\n`
     + `- +0.5 points per 🟨\n`
-    + `(max +10 tile bonus)\n\n`
-    + `🧠 Solve faster, earn glory!`;
+    + `(max +10 bonus)\n\n`
+    + `🧠 Solve smarter, score higher!`;
 
   bot.sendMessage(chatId, scoringText, { parse_mode: 'Markdown' });
 });
+
 
 
 
