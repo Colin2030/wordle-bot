@@ -1,8 +1,9 @@
-name: Scheduled Deploy to Render
+name: Deploy to Render
 
 on:
+  workflow_dispatch:        # Manual trigger from GitHub UI
   schedule:
-    - cron: '0 23 * * *'  # Midnight UK time (23:00 UTC)
+    - cron: '0 23 * * *'     # Midnight UK time (23:00 UTC)
 
 jobs:
   deploy:
@@ -11,3 +12,4 @@ jobs:
       - name: Trigger Render Deploy
         run: |
           curl -X POST https://api.render.com/deploy/srv-d09nnj6uk2gs73dncbog?key=xbeVsm8LIbc
+
