@@ -244,7 +244,9 @@ bot.on('message', async (msg) => {
 
   const trophy = isChampion ? ' 🏆' : '';
 
-  bot.sendMessage(chatId, `${player}${trophy}${weeklyCrown}${dailyFire} scored ${Math.round(finalScore)} points! ${reaction}`);
+  const streakText = streak ? ` (${streak}⚡️)` : '';
+  bot.sendMessage(chatId, `${player}${streakText}${trophy}${weeklyCrown}${dailyFire} scored ${Math.round(finalScore)} points! ${reaction}`);
+
 });
 
 // /ping
