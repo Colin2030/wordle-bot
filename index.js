@@ -208,7 +208,9 @@ bot.on('message', async (msg) => {
       ? reactionThemes[attemptKey][Math.floor(Math.random() * reactionThemes[attemptKey].length)]
       : "Nice try!";
   }
-
+	
+  const playerRow = allScores.reverse().find(row => row[1] === player && row[5]);
+  const streak = playerRow ? parseInt(playerRow[5]) : null;
   const isChampion = await isMonthlyChampion(player);
 
   // Check if player was yesterday's winner
