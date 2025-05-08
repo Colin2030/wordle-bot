@@ -1,7 +1,7 @@
 const { OpenAI } = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-async function generateReaction(score, attempts, player) {
+async function generateReaction(score, attempts, player, streak = null) {
   let mood = "fun and witty";
 
   if (attempts === 'X') {
@@ -13,14 +13,16 @@ async function generateReaction(score, attempts, player) {
     else mood = "light, positive, and celebratory";
   }
 
+  let streakNote = streak ? ` They are on a Wordle streak of ${streak} days.` : "";
+
   const messages = [
     {
       role: "system",
-      content: `You are a ${mood} witty commentator reacting to Wordle scores. Write in UK English. Keep it clever, under 25 words. Emojis welcome.`
+      content: `You are a ${mood} British commentator reacting to Wordle scores. Use UK English. Be clever, keep it under 25 words. Emojis welcome.`
     },
     {
       role: "user",
-      content: `Player ${player} just completed today's Wordle in ${attempts} attempts. Give a one-line reaction based on that performance.`
+      content: `Player ${player} completed today's Wordle in ${attempts} attempts with a score of ${score}.${streakNote} Write a one-liner reaction.`
     }
   ];
 
@@ -39,4 +41,3 @@ async function generateReaction(score, attempts, player) {
 }
 
 module.exports = { generateReaction };
-
