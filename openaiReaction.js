@@ -10,7 +10,7 @@ async function generateReaction(score, attempts, player, streak = null) {
     const num = parseInt(attempts);
     if (num >= 6) mood = "brutally honest and teasing, but not mean";
     else if (num >= 4) mood = "a bit cheeky or snarky";
-    else mood = "light, positive, and celebratory";
+    else mood = "positive and celebratory but with a hint of dry sarcasm";
   }
 
   let streakNote = streak ? ` They are on a Wordle streak of ${streak} days.` : "";
@@ -18,7 +18,7 @@ async function generateReaction(score, attempts, player, streak = null) {
   const messages = [
     {
       role: "system",
-      content: `You are a ${mood} British commentator reacting to Wordle scores. Use UK English. Be clever, keep it under 25 words. Emojis welcome.`
+      content: `You are a ${mood} dry, witty commentator reacting to Wordle scores. Use UK English. Be clever, keep it under 25 words. Emojis welcome.`
     },
     {
       role: "user",
