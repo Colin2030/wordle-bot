@@ -419,9 +419,9 @@ bot.onText(/\/rules(@\w+)?/, (msg) => {
   const chatId = msg.chat.id;
   if (String(chatId) !== String(groupChatId)) return;
 
-  const rules = `📜 *Wordle Wankers Official Rules:*\n\n`
+  const rules = `📜 *Wordle Workers Official Rules:*\n\n`
     + `✅ Share your daily Wordle results \- no lurking! 👀\n`
-    + `✅ Points: (6 - attempts) plus bonus points for greens 🟩 and yellows 🟨\n`
+    + `✅ Points: (60 - attempts) plus bonus points for greens 🟩 and yellows 🟨\n`
     + `✅ Double Points every Friday! 🎉\n`
     + `✅ Daily winner crowned at 9AM 👑\n`
     + `✅ Weekly champion announced every Monday 🏆\n`
