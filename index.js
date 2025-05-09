@@ -640,6 +640,20 @@ cron.schedule('0 8 * * *', async () => {
   }
 });
 
+// Friday Double Points announcement at 8AM
+cron.schedule('0 9 * * 5', async () => {
+  const meme = memes[Math.floor(Math.random() * memes.length)];
+  
+  const fridayMessage = `🎉 *DOUBLE POINTS FRIDAY IS LIVE!*\n\n`
+    + `✅ Every green and yellow counts DOUBLE today!\n`
+    + `✅ Outsmart, outguess, outplay your friends 🧠\n`
+    + `✅ Bring your A-game \\- or prepare for humiliation 😬\n\n`
+    + `Post your Wordle scores like your honor depends on it! 🎯`;
+
+  await bot.sendMessage(groupChatId, fridayMessage, { parse_mode: 'Markdown' });
+  await bot.sendAnimation(groupChatId, meme);
+});
+
   // Weekly champion announcement at Monday 10AM
 cron.schedule('0 10 * * 1', async () => {
   const scores = await getAllScores();
