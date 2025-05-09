@@ -640,8 +640,8 @@ cron.schedule('0 8 * * *', async () => {
   }
 });
 
-// Friday Double Points announcement at 8AM
-cron.schedule('0 9 * * 5', async () => {
+// Friday Double Points announcement at 7AM
+cron.schedule('0 7 * * 5', async () => {
   const meme = memes[Math.floor(Math.random() * memes.length)];
   
   const fridayMessage = `🎉 *DOUBLE POINTS FRIDAY IS LIVE!*\n\n`
