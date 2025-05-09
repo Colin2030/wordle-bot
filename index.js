@@ -246,7 +246,7 @@ bot.on('message', async (msg) => {
 
   const trophy = isChampion ? ' 🏆' : '';
 
-  const streakText = streak ? ` (${streak}⚡️)` : '';
+  const streakText = streak ? ` (${streak})` : '';
   bot.sendMessage(chatId, `${player}${streakText}${trophy}${weeklyCrown}${dailyFire} scored ${Math.round(finalScore)} points! ${reaction}`);
 
 });
