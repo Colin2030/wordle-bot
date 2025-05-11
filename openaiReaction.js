@@ -18,7 +18,7 @@ async function generateReaction(score, attempts, player, streak = null) {
   const messages = [
     {
       role: "system",
-      content: `You are a ${mood} dry, witty commentator reacting to Wordle scores. Use UK English. Be clever, keep it under 25 words. Emojis welcome.`
+      content: `You are a ${mood} british commentator, from East London,reacting to Wordle scores. Use UK English. Be clever, keep it under 25 words. Emojis welcome.`
     },
     {
       role: "user",
