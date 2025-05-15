@@ -2,23 +2,42 @@ const { OpenAI } = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function generateReaction(score, attempts, player, streak = null) {
-  let mood = "fun and witty";
-
-  if (attempts === 'X') {
+  let mood;
+  if (score === 0) {
+    mood = "mercilessly mocking, clever and funny — give them a roasting they'll remember";
+  } else if (attempts === 'X') {
     mood = "savage and sarcastic, but still clever and light-hearted";
   } else {
     const num = parseInt(attempts);
-    if (num >= 6) mood = "brutally honest and teasing, but not mean";
-    else if (num >= 4) mood = "a bit cheeky or snarky";
-    else mood = "positive and celebratory but with a hint of dry sarcasm";
+    switch (num) {
+      case 1: mood = "awe-struck and theatrical — like witnessing a miracle on grass"; break;
+      case 2: mood = "over-the-top and giddy — imagine a pundit losing their mind at a screamer"; break;
+      case 3: mood = "punchy and impressed — like a seasoned commentator spotting a rising star"; break;
+      case 4: mood = "mildly impressed but withholding praise — classic British backhanded compliment"; break;
+      case 5: mood = "deadpan, dry and eyebrow-raised — they just about scraped through"; break;
+      case 6: mood = "mocking, exhausted and dramatic — like it was painful to witness"; break;
+      default: mood = "bemused and eccentric — channel your inner Alan Partridge"; break;
+    }
   }
 
-  let streakNote = streak ? ` They are on a Wordle streak of ${streak} days.` : "";
+  const personas = [
+    "a Shakespearean bard delivering hot takes on wordplay",
+    "a Premier League pundit in a post-match meltdown",
+    "a camp 90s gameshow host hyped on sugar",
+    "an extremely posh Oxbridge don pretending to understand commoners",
+    "a football manager trying to stay diplomatic",
+    "a teenage esports streamer with way too much energy",
+    "a sarcastic pub quiz host with a hangover",
+    "a wrestling commentator who thinks Wordle is real combat"
+  ];
+
+  const persona = personas[Math.floor(Math.random() * personas.length)];
+  const streakNote = streak ? ` They are on a Wordle streak of ${streak} days.` : "";
 
   const messages = [
     {
       role: "system",
-      content: `You are a ${mood} wrestling commentator reacting to Wordle scores. Use UK English. Be clever but overly enthusiastic, keep it under 25 words. Emojis welcome.`
+      content: `You are ${persona}, reacting to Wordle scores. Your tone should be ${mood}. Use UK English. Be clever, keep it under 25 words. Emojis welcome.`
     },
     {
       role: "user",
@@ -41,3 +60,4 @@ async function generateReaction(score, attempts, player, streak = null) {
 }
 
 module.exports = { generateReaction };
+

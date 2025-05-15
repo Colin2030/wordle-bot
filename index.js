@@ -14,6 +14,8 @@ const cron = require('node-cron');
 const { reactions, mildInsults } = require('./phrases');
 const { reactionThemes } = require('./reactions');
 const { generateReaction } = require('./openaiReaction');
+const playerProfiles = require('./playerProfiles');
+
 
 // Decode and save credentials.json from base64 env var
 if (process.env.GOOGLE_CREDENTIALS_B64) {
@@ -148,7 +150,7 @@ bot.on('message', async (msg) => {
   if (!msg.text) return;
 
   const cleanText = msg.text.replace(/,/g, '').trim();
-  const match = cleanText.match(/Wordle\s(\d+)\s([1-6X])\/6\*?/);
+  const match = cleanText.match(/Wordle\s(\d+)\s([1-6X])/6\*?/);
   if (!match) return;
 
   const wordleNumber = parseInt(match[1]);
@@ -161,7 +163,6 @@ bot.on('message', async (msg) => {
 
   const allScores = await getAllScores();
   const alreadySubmitted = allScores.some(([date, p]) => date === today && p === player);
-
   if (alreadySubmitted) {
     bot.sendMessage(chatId, `🛑 ${player}, you've already submitted your Wordle for today. No cheating! 😜`);
     return;
@@ -171,28 +172,49 @@ bot.on('message', async (msg) => {
   const gridMatch = cleanText.match(gridRegex);
 
   let finalScore = 0;
- if (attempts !== 'X') {
-  const base = [0, 60, 45, 30, 20, 10, 0]; // X = 7
-  finalScore += base[numAttempts];
+  if (attempts !== 'X') {
+    const base = [0, 60, 45, 30, 20, 10, 0]; // X = 7
+    finalScore += base[numAttempts];
 
-  if (gridMatch) {
-    const gridText = gridMatch.join('');
-    const greens = (gridText.match(/🟩/g) || []).length;
-    const yellows = (gridText.match(/🟨/g) || []).length;
+    if (gridMatch) {
+      const gridText = gridMatch.join('');
+      const greens = (gridText.match(/🟩/g) || []).length;
+      const yellows = (gridText.match(/🟨/g) || []).length;
 
-    const adjustedGreens = Math.max(greens - 5, 0); // remove guaranteed row
-    const tileBonus = Math.min(adjustedGreens * 1 + yellows * 0.5, 10);
-    finalScore += tileBonus;
+      const adjustedGreens = Math.max(greens - 5, 0); // remove guaranteed row
+      const tileBonus = Math.min(adjustedGreens * 1 + yellows * 0.5, 10);
+      finalScore += tileBonus;
+    }
+
+    if (isFriday) finalScore *= 2;
   }
 
-  if (isFriday) finalScore *= 2;
-}
+  // Calculate streak BEFORE logging today’s score
+  const playerEntries = allScores
+    .filter(([date, p, , , a]) => p === player && a !== 'X')
+    .map(([date]) => new Date(date))
+    .sort((a, b) => a - b);
+
+  playerEntries.push(new Date(today));
+
+  let streak = 1;
+  for (let i = playerEntries.length - 1; i > 0; i--) {
+    const prev = playerEntries[i - 1];
+    const curr = playerEntries[i];
+    const diffDays = Math.round((curr - prev) / (1000 * 60 * 60 * 24));
+    if (diffDays === 1) {
+      streak++;
+    } else {
+      break;
+    }
+  }
 
   await logScore(player, Math.round(finalScore), wordleNumber, attempts);
 
+  const pronouns = playerProfiles[player] || null;
   let reaction;
   try {
-    const aiReaction = await generateReaction(Math.round(finalScore), attempts, player);
+    const aiReaction = await generateReaction(Math.round(finalScore), attempts, player, streak, pronouns);
     if (aiReaction) {
       reaction = aiReaction;
     } else {
@@ -208,9 +230,7 @@ bot.on('message', async (msg) => {
       ? reactionThemes[attemptKey][Math.floor(Math.random() * reactionThemes[attemptKey].length)]
       : "Nice try!";
   }
-	
-  const playerRow = allScores.reverse().find(row => row[1] === player && row[5]);
-  const streak = playerRow ? parseInt(playerRow[5]) : null;
+
   const isChampion = await isMonthlyChampion(player);
 
   // Check if player was yesterday's winner
@@ -245,10 +265,8 @@ bot.on('message', async (msg) => {
   const weeklyCrown = topWeekly === player ? ' 👑' : '';
 
   const trophy = isChampion ? ' 🏆' : '';
-
   const streakText = streak ? ` (${streak})` : '';
   bot.sendMessage(chatId, `${player}${streakText}${trophy}${weeklyCrown}${dailyFire} scored ${Math.round(finalScore)} points! ${reaction}`);
-
 });
 
 // /ping

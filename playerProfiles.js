@@ -7,36 +7,56 @@ module.exports = {
     "pronoun": "he",
     "possessive": "his"
   },
-  "Alex": {
-    "pronoun": "they",
-    "possessive": "their"
-  },
-  "Sam": {
-    "pronoun": "they",
-    "possessive": "their"
-  },
-  "Jess": {
+  "Roz": {
     "pronoun": "she",
     "possessive": "her"
+  },
+  "Sophie": {
+    "pronoun": "she",
+    "possessive": "her"
+  },
+  "Darryl": {
+    "pronoun": "he",
+    "possessive": "his"
   },
   "Jamie": {
     "pronoun": "he",
     "possessive": "his"
   },
-  "Chris": {
+  "Steven": {
     "pronoun": "he",
     "possessive": "his"
   },
-  "Pat": {
-    "pronoun": "they",
-    "possessive": "their"
+  "Jack": {
+    "pronoun": "he",
+    "possessive": "his"
   },
-  "Jordan": {
-    "pronoun": "they",
-    "possessive": "their"
+  "Ola": {
+    "pronoun": "she",
+    "possessive": "her"
   },
-  "Taylor": {
-    "pronoun": "they",
-    "possessive": "their"
+  "Hinal": {
+    "pronoun": "she",
+    "possessive": "her"
+  }
+  "John": {
+    "pronoun": "he",
+    "possessive": "his"
+  }
+  "Trish": {
+    "pronoun": "she",
+    "possessive": "her"
+  }
+  "Jen": {
+    "pronoun": "she",
+    "possessive": "her"
+  }
+  "Louis": {
+    "pronoun": "he",
+    "possessive": "his"
+  }
+  "Liam": {
+    "pronoun": "he",
+    "possessive": "his"
   }
 };
