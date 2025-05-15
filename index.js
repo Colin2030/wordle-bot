@@ -150,7 +150,7 @@ bot.on('message', async (msg) => {
   if (!msg.text) return;
 
   const cleanText = msg.text.replace(/,/g, '').trim();
-  const match = cleanText.match(/Wordle\s(\d+)\s([1-6X])/6\*?/);
+  const match = cleanText.match(/Wordle\s(\d+)\s([1-6X])\/6\*?/);
   if (!match) return;
 
   const wordleNumber = parseInt(match[1]);
