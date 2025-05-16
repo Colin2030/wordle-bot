@@ -6,7 +6,7 @@ async function generateReaction(score, attempts, player, streak = null) {
   if (score === 0) {
     mood = "mercilessly mocking, clever and funny — give them a roasting they'll remember";
   } else if (attempts === 'X') {
-    mood = "savage and sarcastic, but still clever and light-hearted";
+    mood = "savage and sarcastic, but still clever";
   } else {
     const num = parseInt(attempts);
     switch (num) {
