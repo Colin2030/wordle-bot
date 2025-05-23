@@ -13,7 +13,7 @@ async function generateReaction(score, attempts, player, streak = null) {
       case 1: mood = "awe-struck and theatrical — like witnessing a miracle on grass"; break;
       case 2: mood = "over-the-top and giddy — imagine a pundit losing their mind at a screamer"; break;
       case 3: mood = "punchy and impressed — like a seasoned commentator spotting a rising star"; break;
-      case 4: mood = "mildly impressed but withholding praise — classic British backhanded compliment"; break;
+      case 4: mood = "mildly impressed but withholding praise — classic backhanded compliment"; break;
       case 5: mood = "deadpan, dry and eyebrow-raised — they just about scraped through"; break;
       case 6: mood = "mocking, exhausted and dramatic — like it was painful to witness"; break;
       default: mood = "bemused and eccentric — channel your inner Alan Partridge"; break;
@@ -21,7 +21,6 @@ async function generateReaction(score, attempts, player, streak = null) {
   }
 
   const personas = [
-    "a Shakespearean bard delivering hot takes on wordplay",
     "a Premier League pundit in a post-match meltdown",
     "a very risque comedian, like Julian Clary, who loves a rude double entendre",
     "a camp 90s gameshow host hyped on sugar",
