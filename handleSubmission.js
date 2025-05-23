@@ -1,7 +1,7 @@
 const { getAllScores, logScore, getLocalDateString, isMonthlyChampion } = require('./utils');
 const { generateReaction } = require('./openaiReaction');
-const { reactionThemes } = require('./reactions');
-const { playerProfiles } = require('./phrases');
+const { reactionThemes } = require('./fallbackreactions');
+const { playerProfiles } = require('./playerProfiles');
 const groupChatId = process.env.GROUP_CHAT_ID;
 
 module.exports = async function handleSubmission(bot, msg) {
