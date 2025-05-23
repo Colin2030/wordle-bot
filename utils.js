@@ -1,8 +1,15 @@
 const fs = require('fs');
 const { google } = require('googleapis');
 
-const creds = JSON.parse(fs.readFileSync('./credentials.json', 'utf8'));
+// Write credentials.json from env variable if needed
+if (process.env.GOOGLE_CREDENTIALS_B64 && !fs.existsSync('./credentials.json')) {
+  fs.writeFileSync(
+    './credentials.json',
+    Buffer.from(process.env.GOOGLE_CREDENTIALS_B64, 'base64')
+  );
+}
 
+const creds = JSON.parse(fs.readFileSync('./credentials.json', 'utf8'));
 const auth = new google.auth.GoogleAuth({
   credentials: creds,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"]
@@ -34,7 +41,6 @@ async function logScore(player, score, wordleNumber, attempts) {
   const yesterdayString = getLocalDateString(yesterday);
 
   const allScores = await getAllScores();
-
   const yesterdayEntry = allScores.find(([date, p]) => date === yesterdayString && p === player);
   const playerEntries = allScores.filter(([_, p]) => p === player);
 
@@ -51,9 +57,7 @@ async function logScore(player, score, wordleNumber, attempts) {
     }
   }
 
-  if (currentStreak > maxStreak) {
-    maxStreak = currentStreak;
-  }
+  if (currentStreak > maxStreak) maxStreak = currentStreak;
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
