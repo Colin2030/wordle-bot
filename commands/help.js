@@ -5,10 +5,11 @@ module.exports = function help(bot, _, groupChatId) {
     const helpText = `🤖 *Wordle Bot Commands:*\n\n`
       + `/ping - Check if I'm alive 🏓\n`
       + `/leaderboard - Today's scores 📈\n`
-      + `/weeklyleaderboard - This week's scores 📅\n`
+      + `/weeklyleaderboard - This week's scores so far 📅\n`
       + `/monthlyleaderboard - Monthly legends 🏆\n`
-      + `/lastweekchamp - Last week's champ 👑\n`
+      + `/lastweekchamp - Last week's champion 👑\n`
       + `/myrank - See your stats 🏅\n`
+	  + `/streakleaderboard - See the top current streaks 🔥\n`
       + `/rules - The official Wordle creed 📜\n`
       + `/scoring - Scoring explained 🎯\n`
       + `/help - List all commands 🆘\n`
