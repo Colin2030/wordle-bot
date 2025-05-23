@@ -33,19 +33,65 @@ module.exports = async function handleSubmission(bot, msg) {
 
   let finalScore = 0;
   if (attempts !== 'X') {
-    const base = [0, 60, 45, 30, 20, 10, 0];
-    finalScore += base[numAttempts];
+const baseScoreByAttempt = {
+  1: 60,
+  2: 50,
+  3: 40,
+  4: 30,
+  5: 20,
+  6: 10,
+  7: 0 // X/6
+};
+finalScore += baseScoreByAttempt[numAttempts] || 0;
 
-    if (gridMatch) {
-      const gridText = gridMatch.join('');
-      const greens = (gridText.match(/🟩/g) || []).length;
-      const yellows = (gridText.match(/🟨/g) || []).length;
-      const adjustedGreens = Math.max(greens - 5, 0);
-      const tileBonus = Math.min(adjustedGreens * 1 + yellows * 0.5, 10);
-      finalScore += tileBonus;
+if (gridMatch) {
+  const lineValues = [
+    { green: 10, yellow: 5, yellowToGreen: 0, bonus: 50 },
+    { green: 8, yellow: 4, yellowToGreen: 4, bonus: 40 },
+    { green: 6, yellow: 3, yellowToGreen: 3, bonus: 30 },
+    { green: 4, yellow: 2, yellowToGreen: 2, bonus: 20 },
+    { green: 2, yellow: 1, yellowToGreen: 1, bonus: 10 },
+    { green: 1, yellow: 0, yellowToGreen: 0, bonus: 0 }
+  ];
+
+  let gridLines = gridMatch[0].trim().split('\n').filter(Boolean);
+  if (gridLines.length === 1 && gridLines[0].length === 30) {
+  gridLines = gridLines[0].match(/.{1,5}/g); // split into 5-character chunks
+}
+  const seenYellows = new Set();
+  const seenGreens = new Set();
+
+  gridLines.forEach((line, i) => {
+    const rule = lineValues[i] || lineValues[5];
+    const tiles = [...line.trim()];
+
+    tiles.forEach((tile, idx) => {
+      const key = `${idx}`;
+
+      if (tile === '🟩') {
+        if (!seenGreens.has(key)) {
+          finalScore += rule.green;
+          if (seenYellows.has(key)) {
+            finalScore += rule.yellowToGreen;
+          }
+          seenGreens.add(key);
+        }
+      } else if (tile === '🟨') {
+        if (!seenYellows.has(key) && !seenGreens.has(key)) {
+          finalScore += rule.yellow;
+          seenYellows.add(key);
+        }
+      }
+    });
+
+    if (tiles.every(t => t === '🟩')) {
+      finalScore += rule.bonus;
     }
+  });
+}
 
-    if (isFriday) finalScore *= 2;
+if (isFriday) finalScore *= 2;
+
   }
 
   const playerEntries = allScores

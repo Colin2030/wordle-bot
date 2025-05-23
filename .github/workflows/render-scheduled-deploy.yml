@@ -2,8 +2,8 @@ name: Deploy to Render
 
 on:
   workflow_dispatch:        # Manual trigger from GitHub UI
- # schedule:
-  #  - cron: '0 23 * * *'     # Midnight UK time (23:00 UTC)
+  schedule:
+   - cron: '0 23 * * *'     # Midnight UK time (23:00 UTC)
 
 jobs:
   deploy:
