@@ -17,7 +17,7 @@ module.exports = async function handleSubmission(bot, msg) {
   const attempts = match[2];
   const player = msg.from.first_name || 'Unknown';
   const now = new Date();
-  const isFriday = now.getUTCDay() === 5;
+  const isFriday = now.getDay() === 5;
   const numAttempts = attempts === 'X' ? 7 : parseInt(attempts);
   const today = getLocalDateString(now);
 
