@@ -23,9 +23,6 @@ app.post(`/bot${process.env.TELEGRAM_BOT_TOKEN}`, (req, res) => {
   res.sendStatus(200);
 });
 
-// Handle Wordle score messages
-bot.on('message', (msg) => handleSubmission(bot, msg));
-
 // Load all command modules from /commands
 const commandsPath = path.join(__dirname, 'commands');
 fs.readdirSync(commandsPath).filter(file => file.endsWith('.js')).forEach(file => {
