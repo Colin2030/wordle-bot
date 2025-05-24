@@ -193,7 +193,5 @@ try {
 } catch (e) {
   console.error("❌ Failed to send Wordle reply message:", e);
 }
-
-);
 }
 
