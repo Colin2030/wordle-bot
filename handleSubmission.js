@@ -183,8 +183,17 @@ if (isFriday) finalScore *= 2;
 
   const streakText = ` (${streak}${streakEmoji})`;
 
-bot.sendMessage(chatId,
-  `${player}${streakText}${trophy}${weeklyCrown}${dailyMedal} scored ${Math.round(finalScore)} points! ${reaction}`
+if (!reaction) reaction = "Nice Wordle!";
+
+try {
+  await bot.sendMessage(chatId,
+    `${player}${streakText}${trophy}${weeklyCrown}${dailyMedal} scored ${Math.round(finalScore)} points! ${reaction}`,
+    { parse_mode: 'Markdown' }
+  );
+} catch (e) {
+  console.error("❌ Failed to send Wordle reply message:", e);
+}
+
 );
 }
 
