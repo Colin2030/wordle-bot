@@ -1,5 +1,5 @@
 module.exports = function(bot, getAllScores, groupChatId) {
-  const allowedUserIds = [7229240822]; // Replace with your actual Telegram user ID
+  const allowedUserIds = [7229240822]; // your Telegram user ID
 
   bot.onText(/\/say(?:@[\w_]+)? (.+)/, (msg, match) => {
     const chatId = msg.chat.id;
@@ -12,6 +12,13 @@ module.exports = function(bot, getAllScores, groupChatId) {
       return;
     }
 
+    // Delete the command message
+    bot.deleteMessage(chatId, msg.message_id).catch(() => {
+      console.warn("Couldn't delete the user's command message");
+    });
+
+    // Send the bot message
     bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
   });
 };
+
