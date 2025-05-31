@@ -112,7 +112,16 @@ if (isFriday) finalScore *= 2;
     }
   }
 
+  const isArchive = /archive/i.test(cleanText);
+
+if (!isArchive) {
   await logScore(player, Math.round(finalScore), wordleNumber, attempts);
+} else {
+  await bot.sendMessage(chatId,
+    `🗃️ Sorry ${player}, I scored your Archive Wordle but can only log *today's* game to the leaderboard.`,
+    { parse_mode: 'Markdown' }
+  );
+}
 
   const pronouns = playerProfiles[player] || null;
   let reaction;
