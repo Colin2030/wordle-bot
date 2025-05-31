@@ -98,11 +98,14 @@ if (isFriday) finalScore *= 2;
 
   }
 
-  const playerEntries = allScores
-    .filter(([date, p, , , a]) => p === player && a !== 'X')
-    .map(([date]) => new Date(date))
-    .sort((a, b) => a - b);
+const playerEntries = allScores
+  .filter(([date, p, , , a]) => p === player && a !== 'X')
+  .map(([date]) => new Date(date))
+  .sort((a, b) => a - b);
+
+if (!isArchive) {
   playerEntries.push(new Date(today));
+}
 
   let streak = 1;
   for (let i = playerEntries.length - 1; i > 0; i--) {
@@ -115,8 +118,6 @@ if (isFriday) finalScore *= 2;
       break;
     }
   }
-
-  
 
 if (!isArchive) {
   await logScore(player, Math.round(finalScore), wordleNumber, attempts);
