@@ -20,13 +20,17 @@ module.exports = async function handleSubmission(bot, msg) {
   const isFriday = now.getDay() === 5;
   const numAttempts = attempts === 'X' ? 7 : parseInt(attempts);
   const today = getLocalDateString(now);
+  const isArchive = /archive/i.test(cleanText);
 
   const allScores = await getAllScores();
+
+if (!isArchive) {
   const alreadySubmitted = allScores.some(([date, p]) => date === today && p === player);
   if (alreadySubmitted) {
     bot.sendMessage(chatId, `🛑 ${player}, you've already submitted your Wordle for today. No cheating! 😜`);
     return;
   }
+}
 
   const gridRegex = /([⬛⬜🟨🟩]{5}\n?)+/g;
   const gridMatch = cleanText.match(gridRegex);
@@ -112,7 +116,7 @@ if (isFriday) finalScore *= 2;
     }
   }
 
-  const isArchive = /archive/i.test(cleanText);
+  
 
 if (!isArchive) {
   await logScore(player, Math.round(finalScore), wordleNumber, attempts);
