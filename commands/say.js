@@ -1,10 +1,13 @@
+const escapeMarkdown = (text) =>
+  text.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
+
 module.exports = function(bot, getAllScores, groupChatId) {
-  const allowedUserIds = [7229240822]; // your Telegram user ID
+  const allowedUserIds = [7229240822]; // Replace with your Telegram user ID
 
   bot.onText(/\/say(?:@[\w_]+)? (.+)/, (msg, match) => {
     const chatId = msg.chat.id;
     const userId = msg.from.id;
-    const message = match[1];
+    const rawMessage = match[1];
 
     if (String(chatId) !== String(groupChatId)) return;
     if (!allowedUserIds.includes(userId)) {
@@ -12,13 +15,16 @@ module.exports = function(bot, getAllScores, groupChatId) {
       return;
     }
 
-    // Delete the command message
+    // Delete the user's command message
     bot.deleteMessage(chatId, msg.message_id).catch(() => {
-      console.warn("Couldn't delete the user's command message");
+      console.warn("Couldn't delete the user's /say command message");
     });
 
-    // Send the bot message
-    bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    // Escape unsafe Markdown characters
+    const safeMessage = escapeMarkdown(rawMessage);
+
+    // Send the cleaned message with formatting
+    bot.sendMessage(chatId, safeMessage, { parse_mode: 'MarkdownV2' });
   });
 };
 
