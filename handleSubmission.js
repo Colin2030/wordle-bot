@@ -123,7 +123,7 @@ if (!isArchive) {
   await logScore(player, Math.round(finalScore), wordleNumber, attempts);
 } else {
   await bot.sendMessage(chatId,
-    `🗃️ Sorry ${player}, I scored your Archive Wordle but can only log *today's* game to the leaderboard.`,
+    `🗃️ Sorry ${player}, I will score your Archive Wordle but I can only log *today's* game to the leaderboard.`,
     { parse_mode: 'Markdown' }
   );
 }
