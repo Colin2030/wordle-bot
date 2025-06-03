@@ -6,8 +6,8 @@ const { OpenAI } = require('openai');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-module.exports = function(bot, sheets, sheetId, groupChatId) {
-  cron.schedule('30 12 * * *', async () => {
+module.exports = function(bot, getAllScores, groupChatId) {
+  cron.schedule('0 13 * * *', async () => {
     const scores = await getAllScores();
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
