@@ -2,7 +2,7 @@ const escapeMarkdown = (text) =>
   text.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
 
 module.exports = function(bot, getAllScores, groupChatId) {
-  const allowedUserIds = [7229240822]; // 👈 Your Telegram user ID
+  const allowedUserIds = [parseInt(process.env.ADMIN_TELEGRAM_ID)]; // 👈 Your Telegram user ID
 
   bot.onText(/\/say(?:@[\w_]+)? (.+)/, (msg, match) => {
     const userId = msg.from.id;
