@@ -2,34 +2,36 @@ module.exports = function scoring(bot, _, groupChatId) {
   bot.onText(/\/scoring(@\w+)?/, (msg) => {
     if (String(msg.chat.id) !== String(groupChatId)) return;
 
-    const scoringText = `🎯 *Wordle Scoring Rules (New Edition!)*\n\n`
+    const scoringText = `🎯 *Wordle Scoring 2.0!*\n\n`
     + `✅ Your score is based on:\n`
     + `- How *quickly* you solved it\n`
-    + `- How many *new* 🟩 and 🟨 you revealed\n`
-    + `- Whether it's *Friday* (double points!)\n\n`
+    + `- *New* 🟩 and 🟨 tiles (duplicates don't count)\n`
+    + `- 🟨 ➜ 🟩 transitions (bonus!)\n`
+    + `- Penalised full-gray lines\n`
+    + `- *Friday = DOUBLE POINTS!*\n\n`
 
-    + `*Base Score (by guess count):*\n`
+    + `*Base Score:*\n`
     + `- 1st guess: 60 pts\n`
-    + `- 2nd guess: 50 pts\n`
-    + `- 3rd guess: 40 pts\n`
-    + `- 4th guess: 30 pts\n`
-    + `- 5th guess: 20 pts\n`
-    + `- 6th guess: 10 pts\n`
-    + `- Fail (X): 0 pts\n\n`
+    + `- 2nd: 50 pts\n`
+    + `- 3rd: 40 pts\n`
+    + `- 4th: 30 pts\n`
+    + `- 5th: 20 pts\n`
+    + `- 6th: 10 pts\n`
+    + `- X (fail): 0 pts\n\n`
 
-    + `*Per-Tile Bonus (only for new tiles):*\n`
-    + `- Line 1: +10 per 🟩, +5 per 🟨, +50 if solved\n`
-    + `- Line 2: +8 per 🟩, +4 per 🟨, +4 for 🟨→🟩, +40 if solved\n`
-    + `- Line 3: +6 per 🟩, +3 per 🟨, +3 for 🟨→🟩, +30 if solved\n`
-    + `- Line 4: +4 per 🟩, +2 per 🟨, +2 for 🟨→🟩, +20 if solved\n`
-    + `- Line 5: +2 per 🟩, +1 per 🟨, +1 for 🟨→🟩, +10 if solved\n`
-    + `- Line 6: +1 per 🟩 only (no 🟨 or bonus)\n\n`
+    + `*Per-Tile Bonus by Row (🟩/🟨/🟨➜🟩):*\n`
+    + `- Row 1: +2.5 / +1.2 / +1.5 | +10 if all green\n`
+    + `- Row 2: +2.2 / +1.0 / +1.2 | +8 bonus\n`
+    + `- Row 3: +1.8 / +0.8 / +1.0 | +6 bonus\n`
+    + `- Row 4: +1.5 / +0.6 / +0.8 | +4 bonus\n`
+    + `- Row 5: +1.2 / +0.4 / +0.5 | +2 bonus\n`
+    + `- Row 6: +1.0 for 🟩 only | no bonus\n\n`
 
-    + `*Friday Bonus:*\n`
-    + `- All your points are DOUBLED on Fridays! 🎉\n\n`
-
-    + `🧠 Play smart. Solve early. Max those greens!`;
+    + `⬛ *Penalty:* -1 point for each fully gray line (⬛⬛⬛⬛⬛)\n`
+    + `🎉 *Friday Bonus:* Double your final score\n\n`
+    + `🧠 It's forensic. It's precise. It's hard to understand - like Load Files`;
 
     bot.sendMessage(msg.chat.id, scoringText, { parse_mode: 'Markdown' });
   });
 };
+
