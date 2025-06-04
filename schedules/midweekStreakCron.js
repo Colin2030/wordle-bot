@@ -1,7 +1,6 @@
 const cron = require('node-cron');
-const { getAllScores } = require('../utils');
 
-module.exports = function midweekStreakCron(bot, groupChatId) {
+module.exports = function midweekStreakCron(bot, getAllScores, groupChatId) {
   cron.schedule('0 8 * * 3', async () => {
     const scores = await getAllScores();
     const streakMap = {};
