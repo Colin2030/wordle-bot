@@ -9,6 +9,9 @@ const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const { getAllScores } = require('./utils');
 const handleSubmission = require('./handleSubmission');
+const nerdyAnnouncement = require('./commands/nerdyAnnouncement');
+nerdyAnnouncement(bot, null, groupChatId);
+
 
 const app = express();
 app.use(express.json());
