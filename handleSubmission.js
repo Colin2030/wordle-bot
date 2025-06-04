@@ -1,3 +1,4 @@
+// Updated handleSubmission.js with refined scoring logic (no /announce command)
 const { getAllScores, logScore, getLocalDateString, isMonthlyChampion } = require('./utils');
 const { generateReaction } = require('./openaiReaction');
 const { reactionThemes } = require('./fallbackreactions');
@@ -24,88 +25,95 @@ module.exports = async function handleSubmission(bot, msg) {
 
   const allScores = await getAllScores();
 
-if (!isArchive) {
-  const alreadySubmitted = allScores.some(([date, p]) => date === today && p === player);
-  if (alreadySubmitted) {
-    bot.sendMessage(chatId, `🛑 ${player}, you've already submitted your Wordle for today. No cheating! 😜`);
-    return;
+  if (!isArchive) {
+    const alreadySubmitted = allScores.some(([date, p]) => date === today && p === player);
+    if (alreadySubmitted) {
+      bot.sendMessage(chatId, `🛑 ${player}, you've already submitted your Wordle for today. No cheating! 😜`);
+      return;
+    }
   }
-}
 
   const gridRegex = /([⬛⬜🟨🟩]{5}\n?)+/g;
   const gridMatch = cleanText.match(gridRegex);
 
   let finalScore = 0;
   if (attempts !== 'X') {
-const baseScoreByAttempt = {
-  1: 60,
-  2: 50,
-  3: 40,
-  4: 30,
-  5: 20,
-  6: 10,
-  7: 0 // X/6
-};
-finalScore += baseScoreByAttempt[numAttempts] || 0;
+    const baseScoreByAttempt = {
+      1: 60,
+      2: 50,
+      3: 40,
+      4: 30,
+      5: 20,
+      6: 10,
+      7: 0 // X/6
+    };
+    finalScore += baseScoreByAttempt[numAttempts] || 0;
 
-if (gridMatch) {
-  const lineValues = [
-    { green: 10, yellow: 5, yellowToGreen: 0, bonus: 50 },
-    { green: 8, yellow: 4, yellowToGreen: 4, bonus: 40 },
-    { green: 6, yellow: 3, yellowToGreen: 3, bonus: 30 },
-    { green: 4, yellow: 2, yellowToGreen: 2, bonus: 20 },
-    { green: 2, yellow: 1, yellowToGreen: 1, bonus: 10 },
-    { green: 1, yellow: 0, yellowToGreen: 0, bonus: 0 }
-  ];
+    if (gridMatch) {
+      const lineValues = [
+        { green: 2.5, yellow: 1.2, yellowToGreen: 1.5, bonus: 10, fullGrayPenalty: -1 },
+        { green: 2.2, yellow: 1.0, yellowToGreen: 1.2, bonus: 8, fullGrayPenalty: -1 },
+        { green: 1.8, yellow: 0.8, yellowToGreen: 1.0, bonus: 6, fullGrayPenalty: -0.5 },
+        { green: 1.5, yellow: 0.6, yellowToGreen: 0.8, bonus: 4, fullGrayPenalty: -0.5 },
+        { green: 1.2, yellow: 0.4, yellowToGreen: 0.5, bonus: 2, fullGrayPenalty: 0 },
+        { green: 1.0, yellow: 0.2, yellowToGreen: 0.3, bonus: 0, fullGrayPenalty: 0 }
+      ];
 
-  let gridLines = gridMatch[0].trim().split('\n').filter(Boolean);
-  if (gridLines.length === 1 && gridLines[0].length === 30) {
-  gridLines = gridLines[0].match(/.{1,5}/g); // split into 5-character chunks
-}
-  const seenYellows = new Set();
-  const seenGreens = new Set();
-
-  gridLines.forEach((line, i) => {
-    const rule = lineValues[i] || lineValues[5];
-    const tiles = [...line.trim()];
-
-    tiles.forEach((tile, idx) => {
-      const key = `${idx}`;
-
-      if (tile === '🟩') {
-        if (!seenGreens.has(key)) {
-          finalScore += rule.green;
-          if (seenYellows.has(key)) {
-            finalScore += rule.yellowToGreen;
-          }
-          seenGreens.add(key);
-        }
-      } else if (tile === '🟨') {
-        if (!seenYellows.has(key) && !seenGreens.has(key)) {
-          finalScore += rule.yellow;
-          seenYellows.add(key);
-        }
+      let gridLines = gridMatch[0].trim().split('\n').filter(Boolean);
+      if (gridLines.length === 1 && gridLines[0].length === 30) {
+        gridLines = gridLines[0].match(/.{1,5}/g);
       }
-    });
 
-    if (tiles.every(t => t === '🟩')) {
-      finalScore += rule.bonus;
+      const seenYellows = new Set();
+      const seenGreens = new Set();
+
+      gridLines.forEach((line, i) => {
+        const rule = lineValues[i] || lineValues[5];
+        const tiles = [...line.trim()];
+        let fullGray = true;
+
+        tiles.forEach((tile, idx) => {
+          const key = `${idx}`;
+
+          if (tile === '🟩') {
+            fullGray = false;
+            if (!seenGreens.has(key)) {
+              finalScore += rule.green;
+              if (seenYellows.has(key)) {
+                finalScore += rule.yellowToGreen;
+              }
+              seenGreens.add(key);
+            }
+          } else if (tile === '🟨') {
+            fullGray = false;
+            if (!seenYellows.has(key) && !seenGreens.has(key)) {
+              finalScore += rule.yellow;
+              seenYellows.add(key);
+            }
+          }
+        });
+
+        if (tiles.every(t => t === '🟩')) {
+          finalScore += rule.bonus;
+        }
+
+        if (fullGray) {
+          finalScore += rule.fullGrayPenalty;
+        }
+      });
     }
-  });
-}
 
-if (isFriday) finalScore *= 2;
-
+    if (isFriday) finalScore *= 2;
   }
 
-const playerEntries = allScores
-  .filter(([date, p, , , a]) => p === player && a !== 'X')
-  .map(([date]) => new Date(date))
-  .sort((a, b) => a - b);
+  const playerEntries = allScores
+    .filter(([date, p, , , a]) => p === player && a !== 'X')
+    .map(([date]) => new Date(date))
+    .sort((a, b) => a - b);
 
-if (!isArchive) {
-  playerEntries.push(new Date(today));
-}
+  if (!isArchive) {
+    playerEntries.push(new Date(today));
+  }
 
   let streak = 1;
   for (let i = playerEntries.length - 1; i > 0; i--) {
@@ -119,14 +127,14 @@ if (!isArchive) {
     }
   }
 
-if (!isArchive) {
-  await logScore(player, Math.round(finalScore), wordleNumber, attempts);
-} else {
-  await bot.sendMessage(chatId,
-    `🗃️ Sorry ${player}, I will score your Archive Wordle but I can only log *today's* game to the leaderboard.`,
-    { parse_mode: 'Markdown' }
-  );
-}
+  if (!isArchive) {
+    await logScore(player, Math.round(finalScore), wordleNumber, attempts);
+  } else {
+    await bot.sendMessage(chatId,
+      `🗃️ Sorry ${player}, I will score your Archive Wordle but I can only log *today's* game to the leaderboard.`,
+      { parse_mode: 'Markdown' }
+    );
+  }
 
   const pronouns = playerProfiles[player] || null;
   let reaction;
@@ -136,21 +144,16 @@ if (!isArchive) {
       reaction = aiReaction;
     } else {
       const attemptKey = attempts === 'X' ? 'X' : parseInt(attempts);
-      reaction = reactionThemes[attemptKey]
-        ? reactionThemes[attemptKey][Math.floor(Math.random() * reactionThemes[attemptKey].length)]
-        : "Nice effort!";
+      reaction = reactionThemes[attemptKey]?.[Math.floor(Math.random() * reactionThemes[attemptKey].length)] || "Nice effort!";
     }
   } catch (e) {
     console.error("Failed to generate AI reaction:", e);
     const attemptKey = attempts === 'X' ? 'X' : parseInt(attempts);
-    reaction = reactionThemes[attemptKey]
-      ? reactionThemes[attemptKey][Math.floor(Math.random() * reactionThemes[attemptKey].length)]
-      : "Nice try!";
+    reaction = reactionThemes[attemptKey]?.[Math.floor(Math.random() * reactionThemes[attemptKey].length)] || "Nice try!";
   }
 
   const isChampion = await isMonthlyChampion(player);
 
-  // Medal logic (🥇 🥈 🥉)
   const yesterday = new Date();
   yesterday.setDate(now.getDate() - 1);
   const yestDate = getLocalDateString(yesterday);
@@ -166,7 +169,6 @@ if (!isArchive) {
   else if (player === second) dailyMedal = ' 🥈';
   else if (player === third) dailyMedal = ' 🥉';
 
-  // Weekly champion
   const lastMonday = new Date(now);
   lastMonday.setDate(now.getDate() - ((now.getDay() + 6) % 7) - 7);
   lastMonday.setHours(0, 0, 0, 0);
@@ -184,7 +186,6 @@ if (!isArchive) {
   }, {});
   const topWeekly = Object.entries(weeklyTotals).sort((a, b) => b[1] - a[1])[0]?.[0];
   const weeklyCrown = topWeekly === player ? ' 👑' : '';
-
   const trophy = isChampion ? ' 🏆' : '';
 
   let streakEmoji = '';
@@ -196,16 +197,14 @@ if (!isArchive) {
   else if (streak >= 10) streakEmoji = ' 🔥';
 
   const streakText = ` (${streak}${streakEmoji})`;
+  if (!reaction) reaction = "Nice Wordle!";
 
-if (!reaction) reaction = "Nice Wordle!";
-
-try {
-  await bot.sendMessage(chatId,
-    `${player}${streakText}${trophy}${weeklyCrown}${dailyMedal} scored ${Math.round(finalScore)} points! ${reaction}`,
-    { parse_mode: 'Markdown' }
-  );
-} catch (e) {
-  console.error("❌ Failed to send Wordle reply message:", e);
-}
-}
-
+  try {
+    await bot.sendMessage(chatId,
+      `${player}${streakText}${trophy}${weeklyCrown}${dailyMedal} scored ${Math.round(finalScore)} points! ${reaction}`,
+      { parse_mode: 'Markdown' }
+    );
+  } catch (e) {
+    console.error("❌ Failed to send Wordle reply message:", e);
+  }
+};
