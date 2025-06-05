@@ -1,9 +1,11 @@
-// Updated handleSubmission.js with refined scoring logic (no /announce command)
+// Updated handleSubmission.js — includes debug log to confirm v2 scoring is live with no final-line bonus
 const { getAllScores, logScore, getLocalDateString, isMonthlyChampion } = require('./utils');
 const { generateReaction } = require('./openaiReaction');
 const { reactionThemes } = require('./fallbackreactions');
 const playerProfiles = require('./playerProfiles');
 const groupChatId = process.env.GROUP_CHAT_ID;
+
+console.log("🧪 Scoring logic: Wordle Bot v2.0 with decimal scoring is active");
 
 module.exports = async function handleSubmission(bot, msg) {
   const chatId = msg.chat.id;
@@ -45,7 +47,7 @@ module.exports = async function handleSubmission(bot, msg) {
       4: 30,
       5: 20,
       6: 10,
-      7: 0 // X/6
+      7: 0
     };
     finalScore += baseScoreByAttempt[numAttempts] || 0;
 
@@ -93,7 +95,7 @@ module.exports = async function handleSubmission(bot, msg) {
           }
         });
 
-        if (tiles.every(t => t === '🟩')) {
+        if (tiles.every(t => t === '🟩') && i < 5) {
           finalScore += rule.bonus;
         }
 
