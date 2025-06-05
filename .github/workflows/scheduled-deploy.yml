@@ -1,4 +1,4 @@
-name: Scheduled Deploy to Render
+name: Scheduled Clean Deploy to Render
 
 on:
   schedule:
@@ -7,6 +7,19 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      SERVICE_ID: srv-d09nnj6uk2gs73dncbog
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+
     steps:
-      - name: Trigger Render Deploy
-        run: curl -X POST "https://api.render.com/deploy/srv-d09nnj6uk2gs73dncbog?key=xbeVsm8LIbc"
+      - name: Invalidate Render build cache by updating dummy env var
+        run: |
+          curl -X PATCH \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"envVars\": [{\"key\": \"REDEPLOY_VERSION\", \"value\": \"$(date +%s)\", \"serviceId\": \"$SERVICE_ID\"}]}" \
+            https://api.render.com/v1/services/$SERVICE_ID/env-vars
+
+      - name: Trigger Render Deploy via Deploy Hook
+        run: |
+          curl -X POST "https://api.render.com/deploy/srv-d09nnj6uk2gs73dncbog?key=xbeVsm8LIbc"
