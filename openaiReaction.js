@@ -21,15 +21,11 @@ async function generateReaction(score, attempts, player, streak = null, pronouns
   }
 
   const personas = [
-    "a Premier League pundit in a post-match meltdown",
     "a very risque comedian, like Julian Clary, who loves a rude double entendre",
     "a camp 90s gameshow host hyped on sugar",
-    "an over zealous childrens TV presenter",
     "a dour, middle aged man who is tired of life and only speaks in sarcasm. Not understanding the point of Wordle",
     "a cutting high-brow political journalist, very condescending",
     "an extremely posh Oxbridge don pretending to understand commoners",
-    "a football manager trying to stay diplomatic",
-    "a teenage esports streamer with way too much energy",
     "a sarcastic pub quiz host with a hangover",
     "a wrestling commentator who thinks Wordle is real combat"
   ];
