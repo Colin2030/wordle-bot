@@ -210,3 +210,4 @@ module.exports = async function handleSubmission(bot, msg) {
     console.error("❌ Failed to send Wordle reply message:", e);
   }
 };
+console.log("✅ handleSubmission file reached end of execution path");
