@@ -1,4 +1,4 @@
-// Updated handleSubmission.js — includes debug log to confirm v2 scoring is live with no final-line bonus
+// Updated handleSubmission.js — includes emoji-safe parsing fix
 const { getAllScores, logScore, getLocalDateString, isMonthlyChampion } = require('./utils');
 const { generateReaction } = require('./openaiReaction');
 const { reactionThemes } = require('./fallbackreactions');
@@ -52,6 +52,15 @@ module.exports = async function handleSubmission(bot, msg) {
     finalScore += baseScoreByAttempt[numAttempts] || 0;
 
     if (gridMatch) {
+      // ✨ Unicode-safe emoji chunking
+      let gridText = gridMatch[0].replace(/\s+/g, '');
+      let emojiChunks = Array.from(gridText);
+      let gridLines = [];
+      for (let i = 0; i < emojiChunks.length; i += 5) {
+        gridLines.push(emojiChunks.slice(i, i + 5).join(''));
+      }
+      console.log(`[DEBUG] Parsed grid lines (${gridLines.length}):`, gridLines);
+
       const lineValues = [
         { green: 2.5, yellow: 1.2, yellowToGreen: 1.5, bonus: 10, fullGrayPenalty: -1 },
         { green: 2.2, yellow: 1.0, yellowToGreen: 1.2, bonus: 8, fullGrayPenalty: -1 },
@@ -60,14 +69,6 @@ module.exports = async function handleSubmission(bot, msg) {
         { green: 1.2, yellow: 0.4, yellowToGreen: 0.5, bonus: 2, fullGrayPenalty: 0 },
         { green: 1.0, yellow: 0.2, yellowToGreen: 0.3, bonus: 0, fullGrayPenalty: 0 }
       ];
-
-      let gridText = gridMatch[0].replace(/\s+/g, '');
-let emojiChunks = Array.from(gridText);
-let gridLines = [];
-for (let i = 0; i < emojiChunks.length; i += 5) {
-  gridLines.push(emojiChunks.slice(i, i + 5).join(''));
-}
-console.log(`[DEBUG] Parsed grid lines (${gridLines.length}):`, gridLines);
 
       const seenYellows = new Set();
       const seenGreens = new Set();
