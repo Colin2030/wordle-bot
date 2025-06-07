@@ -107,7 +107,7 @@ module.exports = async function handleSubmission(bot, msg) {
 
     if (isFriday) finalScore *= 2;
   }
-
+console.log(`[DEBUG] Parsed grid lines (${gridLines.length}):`, gridLines);
   const playerEntries = allScores
     .filter(([date, p, , , a]) => p === player && a !== 'X')
     .map(([date]) => new Date(date))
