@@ -61,12 +61,10 @@ module.exports = async function handleSubmission(bot, msg) {
         { green: 1.0, yellow: 0.2, yellowToGreen: 0.3, bonus: 0, fullGrayPenalty: 0 }
       ];
 
-      let gridLines = gridMatch[0].trim().split('\n').filter(Boolean);
-      if (gridLines.length === 1 && gridLines[0].length === 30) {
-        gridLines = gridLines[0].match(/.{1,5}/g);
-      }
-      
-    console.log(`[DEBUG] Parsed grid lines (${gridLines.length}):`, gridLines);
+      let gridText = gridMatch[0].replace(/\s+/g, '');
+      let gridLines = gridText.match(/.{5}/g) || [];
+
+      console.log(`[DEBUG] Parsed grid lines (${gridLines.length}):`, gridLines);
 
       const seenYellows = new Set();
       const seenGreens = new Set();
