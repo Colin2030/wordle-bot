@@ -62,9 +62,12 @@ module.exports = async function handleSubmission(bot, msg) {
       ];
 
       let gridText = gridMatch[0].replace(/\s+/g, '');
-      let gridLines = gridText.match(/.{5}/g) || [];
-
-      console.log(`[DEBUG] Parsed grid lines (${gridLines.length}):`, gridLines);
+let emojiChunks = Array.from(gridText);
+let gridLines = [];
+for (let i = 0; i < emojiChunks.length; i += 5) {
+  gridLines.push(emojiChunks.slice(i, i + 5).join(''));
+}
+console.log(`[DEBUG] Parsed grid lines (${gridLines.length}):`, gridLines);
 
       const seenYellows = new Set();
       const seenGreens = new Set();
