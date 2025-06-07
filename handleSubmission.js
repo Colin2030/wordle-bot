@@ -65,6 +65,8 @@ module.exports = async function handleSubmission(bot, msg) {
       if (gridLines.length === 1 && gridLines[0].length === 30) {
         gridLines = gridLines[0].match(/.{1,5}/g);
       }
+      
+    console.log(`[DEBUG] Parsed grid lines (${gridLines.length}):`, gridLines);
 
       const seenYellows = new Set();
       const seenGreens = new Set();
@@ -107,7 +109,7 @@ module.exports = async function handleSubmission(bot, msg) {
 
     if (isFriday) finalScore *= 2;
   }
-console.log(`[DEBUG] Parsed grid lines (${gridLines.length}):`, gridLines);
+
   const playerEntries = allScores
     .filter(([date, p, , , a]) => p === player && a !== 'X')
     .map(([date]) => new Date(date))
