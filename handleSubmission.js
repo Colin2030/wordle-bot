@@ -1,4 +1,4 @@
-// Updated handleSubmission.js — includes emoji-safe parsing fix
+// Updated handleSubmission.js — full emoji-safe parsing using matchAll
 const { getAllScores, logScore, getLocalDateString, isMonthlyChampion } = require('./utils');
 const { generateReaction } = require('./openaiReaction');
 const { reactionThemes } = require('./fallbackreactions');
@@ -35,8 +35,10 @@ module.exports = async function handleSubmission(bot, msg) {
     }
   }
 
-  const gridRegex = /([⬛⬜🟨🟩]{5}\n?)+/g;
-  const gridMatch = cleanText.match(gridRegex);
+  const emojiLineRegex = /[⬛⬜🟨🟩]{5}/g;
+  const gridMatch = Array.from(cleanText.matchAll(emojiLineRegex)).map(m => m[0]);
+  let gridLines = gridMatch;
+  console.log(`[DEBUG] Parsed grid lines (${gridLines.length}):`, gridLines);
 
   let finalScore = 0;
   if (attempts !== 'X') {
@@ -51,63 +53,52 @@ module.exports = async function handleSubmission(bot, msg) {
     };
     finalScore += baseScoreByAttempt[numAttempts] || 0;
 
-    if (gridMatch) {
-      // ✨ Unicode-safe emoji chunking
-      let gridText = gridMatch[0].replace(/\s+/g, '');
-      let emojiChunks = Array.from(gridText);
-      let gridLines = [];
-      for (let i = 0; i < emojiChunks.length; i += 5) {
-        gridLines.push(emojiChunks.slice(i, i + 5).join(''));
-      }
-      console.log(`[DEBUG] Parsed grid lines (${gridLines.length}):`, gridLines);
+    const lineValues = [
+      { green: 2.5, yellow: 1.2, yellowToGreen: 1.5, bonus: 10, fullGrayPenalty: -1 },
+      { green: 2.2, yellow: 1.0, yellowToGreen: 1.2, bonus: 8, fullGrayPenalty: -1 },
+      { green: 1.8, yellow: 0.8, yellowToGreen: 1.0, bonus: 6, fullGrayPenalty: -0.5 },
+      { green: 1.5, yellow: 0.6, yellowToGreen: 0.8, bonus: 4, fullGrayPenalty: -0.5 },
+      { green: 1.2, yellow: 0.4, yellowToGreen: 0.5, bonus: 2, fullGrayPenalty: 0 },
+      { green: 1.0, yellow: 0.2, yellowToGreen: 0.3, bonus: 0, fullGrayPenalty: 0 }
+    ];
 
-      const lineValues = [
-        { green: 2.5, yellow: 1.2, yellowToGreen: 1.5, bonus: 10, fullGrayPenalty: -1 },
-        { green: 2.2, yellow: 1.0, yellowToGreen: 1.2, bonus: 8, fullGrayPenalty: -1 },
-        { green: 1.8, yellow: 0.8, yellowToGreen: 1.0, bonus: 6, fullGrayPenalty: -0.5 },
-        { green: 1.5, yellow: 0.6, yellowToGreen: 0.8, bonus: 4, fullGrayPenalty: -0.5 },
-        { green: 1.2, yellow: 0.4, yellowToGreen: 0.5, bonus: 2, fullGrayPenalty: 0 },
-        { green: 1.0, yellow: 0.2, yellowToGreen: 0.3, bonus: 0, fullGrayPenalty: 0 }
-      ];
+    const seenYellows = new Set();
+    const seenGreens = new Set();
 
-      const seenYellows = new Set();
-      const seenGreens = new Set();
+    gridLines.forEach((line, i) => {
+      const rule = lineValues[i] || lineValues[5];
+      const tiles = [...line.trim()];
+      let fullGray = true;
 
-      gridLines.forEach((line, i) => {
-        const rule = lineValues[i] || lineValues[5];
-        const tiles = [...line.trim()];
-        let fullGray = true;
+      tiles.forEach((tile, idx) => {
+        const key = `${idx}`;
 
-        tiles.forEach((tile, idx) => {
-          const key = `${idx}`;
-
-          if (tile === '🟩') {
-            fullGray = false;
-            if (!seenGreens.has(key)) {
-              finalScore += rule.green;
-              if (seenYellows.has(key)) {
-                finalScore += rule.yellowToGreen;
-              }
-              seenGreens.add(key);
+        if (tile === '🟩') {
+          fullGray = false;
+          if (!seenGreens.has(key)) {
+            finalScore += rule.green;
+            if (seenYellows.has(key)) {
+              finalScore += rule.yellowToGreen;
             }
-          } else if (tile === '🟨') {
-            fullGray = false;
-            if (!seenYellows.has(key) && !seenGreens.has(key)) {
-              finalScore += rule.yellow;
-              seenYellows.add(key);
-            }
+            seenGreens.add(key);
           }
-        });
-
-        if (tiles.every(t => t === '🟩') && i < 5) {
-          finalScore += rule.bonus;
-        }
-
-        if (fullGray) {
-          finalScore += rule.fullGrayPenalty;
+        } else if (tile === '🟨') {
+          fullGray = false;
+          if (!seenYellows.has(key) && !seenGreens.has(key)) {
+            finalScore += rule.yellow;
+            seenYellows.add(key);
+          }
         }
       });
-    }
+
+      if (tiles.every(t => t === '🟩') && i < 5) {
+        finalScore += rule.bonus;
+      }
+
+      if (fullGray) {
+        finalScore += rule.fullGrayPenalty;
+      }
+    });
 
     if (isFriday) finalScore *= 2;
   }
