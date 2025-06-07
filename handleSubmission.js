@@ -1,4 +1,4 @@
-// Updated handleSubmission.js — bulletproof emoji parsing using Array.from()
+// Updated handleSubmission.js — pure grapheme-safe emoji filtering
 const { getAllScores, logScore, getLocalDateString, isMonthlyChampion } = require('./utils');
 const { generateReaction } = require('./openaiReaction');
 const { reactionThemes } = require('./fallbackreactions');
@@ -35,8 +35,8 @@ module.exports = async function handleSubmission(bot, msg) {
     }
   }
 
-  // 🎯 Emoji-safe grid parsing
-  const emojiChars = Array.from(cleanText.match(/[⬛⬜🟨🟩]/g) || []);
+  // ✅ Final fix: emoji-safe grid parsing using grapheme filter
+  const emojiChars = Array.from(cleanText).filter(char => ['⬛', '⬜', '🟨', '🟩'].includes(char));
   let gridLines = [];
   for (let i = 0; i < emojiChars.length; i += 5) {
     gridLines.push(emojiChars.slice(i, i + 5).join(''));
