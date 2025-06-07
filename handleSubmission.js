@@ -1,8 +1,4 @@
-<<<<<<< Updated upstream
-// Updated handleSubmission.js — full emoji-safe parsing using matchAll
-=======
 // Updated handleSubmission.js — bulletproof emoji parsing using Array.from()
->>>>>>> Stashed changes
 const { getAllScores, logScore, getLocalDateString, isMonthlyChampion } = require('./utils');
 const { generateReaction } = require('./openaiReaction');
 const { reactionThemes } = require('./fallbackreactions');
@@ -39,18 +35,12 @@ module.exports = async function handleSubmission(bot, msg) {
     }
   }
 
-<<<<<<< Updated upstream
-  const emojiLineRegex = /[⬛⬜🟨🟩]{5}/g;
-  const gridMatch = Array.from(cleanText.matchAll(emojiLineRegex)).map(m => m[0]);
-  let gridLines = gridMatch;
-=======
   // 🎯 Emoji-safe grid parsing
   const emojiChars = Array.from(cleanText.match(/[⬛⬜🟨🟩]/g) || []);
   let gridLines = [];
   for (let i = 0; i < emojiChars.length; i += 5) {
     gridLines.push(emojiChars.slice(i, i + 5).join(''));
   }
->>>>>>> Stashed changes
   console.log(`[DEBUG] Parsed grid lines (${gridLines.length}):`, gridLines);
 
   let finalScore = 0;
@@ -116,7 +106,7 @@ module.exports = async function handleSubmission(bot, msg) {
     if (isFriday) finalScore *= 2;
   }
 
-  const playerEntries = allScores
+   const playerEntries = allScores
     .filter(([date, p, , , a]) => p === player && a !== 'X')
     .map(([date]) => new Date(date))
     .sort((a, b) => a - b);
