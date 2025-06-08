@@ -9,7 +9,7 @@ module.exports = function nerdyAnnouncement(bot, _, groupChatId) {
       + `🟨 Yellows matter too (but no bonus for repeating evidence).\n`
       + `🟨➜🟩 transitions are now traceable and rewarded.\n`
       + `⬛ All-gray lines? Expect a minor penalty — no signal = no glory.\n`
-      + `🎯 With scores down to 0.1 differeces, ties should now be rarer than a clean MD5 collision.\n\n`
+      + `🎯 With scores down to 0.1 divisions, ties should now be rarer than a clean MD5 collision.\n\n`
       + `👀 All new submisdons will be scored with version 2.0 of the truth engine™.\n\n`
       + `➤ Post your results\n`
       + `➤ Trust the output\n`
