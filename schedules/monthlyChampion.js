@@ -1,3 +1,4 @@
+// /monthlyChampion — announces and logs last month's champion with decimal scores
 module.exports = function monthlyChampion(bot, getAllScores, groupChatId) {
   const cron = require('node-cron');
   const { google } = require('googleapis');
@@ -22,7 +23,7 @@ module.exports = function monthlyChampion(bot, getAllScores, groupChatId) {
     for (const [date, player, score] of scores) {
       const entryDate = new Date(date);
       if (entryDate >= lastMonth && entryDate < thisMonth) {
-        leaderboard[player] = (leaderboard[player] || 0) + parseInt(score);
+        leaderboard[player] = (leaderboard[player] || 0) + parseFloat(score);
       }
     }
 
@@ -34,7 +35,7 @@ module.exports = function monthlyChampion(bot, getAllScores, groupChatId) {
     const sorted = Object.entries(leaderboard).sort((a, b) => b[1] - a[1]);
     const [winner, score] = sorted[0];
 
-    const msg = `🎉 *Monthly Champion Announcement!* 🎉\n\n🏆 ${winner} is the Wordle Legend for last month with *${score} points*! 👑🎁\n\nCongratulations!`;
+    const msg = `🎉 *Monthly Champion Announcement!* 🎉\n\n🏆 ${winner} is the Wordle Legend for last month with *${score.toFixed(1)} points*! 👑🎁\n\nCongratulations!`;
     await bot.sendMessage(groupChatId, msg, { parse_mode: 'Markdown' });
 
     const monthString = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
