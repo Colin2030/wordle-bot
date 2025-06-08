@@ -1,3 +1,4 @@
+// /monthlyleaderboard — command showing monthly totals with decimal formatting
 module.exports = function monthlyleaderboard(bot, getAllScores, groupChatId) {
   bot.onText(/\/monthlyleaderboard(@\w+)?/, async (msg) => {
     const chatId = msg.chat.id;
@@ -13,12 +14,14 @@ module.exports = function monthlyleaderboard(bot, getAllScores, groupChatId) {
     for (const [date, player, score] of scores) {
       const entryDate = new Date(date);
       if (entryDate >= firstOfMonth && entryDate <= now) {
-        leaderboard[player] = (leaderboard[player] || 0) + parseInt(score);
+        leaderboard[player] = (leaderboard[player] || 0) + parseFloat(score);
       }
     }
 
     const sorted = Object.entries(leaderboard).sort((a, b) => b[1] - a[1]);
-    let text = `📅 *This Month's Wordle Warriors:*\n\n`;
+    let text = `📅 *This Month's Wordle Warriors:*
+
+`;
 
     if (sorted.length === 0) {
       text += `No scores recorded yet this month! Start Wordling! 🎯`;
@@ -27,7 +30,7 @@ module.exports = function monthlyleaderboard(bot, getAllScores, groupChatId) {
       sorted.forEach(([player, score], index) => {
         let medal = index === 0 ? '🏆' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
         let closingIn = index !== 0 && topScore - score <= 30 ? ' 🔥 Closing in!' : '';
-        text += `${index + 1}. ${medal} ${player}: ${score} pts${closingIn}\n`;
+        text += `${index + 1}. ${medal} ${player}: ${score.toFixed(1)} pts${closingIn}\n`;
       });
     }
 
