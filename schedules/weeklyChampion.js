@@ -1,3 +1,4 @@
+// /weeklyChampion — announces last week's winner with decimal scores
 module.exports = function weeklyChampion(bot, getAllScores, groupChatId) {
   const cron = require('node-cron');
 
@@ -18,7 +19,7 @@ module.exports = function weeklyChampion(bot, getAllScores, groupChatId) {
     for (const [date, player, score] of scores) {
       const entryDate = new Date(date);
       if (entryDate >= lastMonday && entryDate <= lastSunday) {
-        leaderboard[player] = (leaderboard[player] || 0) + parseInt(score);
+        leaderboard[player] = (leaderboard[player] || 0) + parseFloat(score);
       }
     }
 
@@ -27,6 +28,12 @@ module.exports = function weeklyChampion(bot, getAllScores, groupChatId) {
 
     const [winnerName, winnerScore] = sorted[0];
 
-    bot.sendMessage(groupChatId, `👑 *Last week's Champion:*\n\n${winnerName} with ${winnerScore} points! Congratulations! 🎉`, { parse_mode: 'Markdown' });
+    bot.sendMessage(
+      groupChatId,
+      `👑 *Last week's Champion:*
+
+${winnerName} with ${winnerScore.toFixed(1)} points! Congratulations! 🎉`,
+      { parse_mode: 'Markdown' }
+    );
   });
 };
