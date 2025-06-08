@@ -1,4 +1,4 @@
-// Updated handleSubmission.js — pure grapheme-safe emoji filtering
+// Updated handleSubmission.js — now shows decimal scores to reduce ties
 const { getAllScores, logScore, getLocalDateString, isMonthlyChampion } = require('./utils');
 const { generateReaction } = require('./openaiReaction');
 const { reactionThemes } = require('./fallbackreactions');
@@ -35,7 +35,6 @@ module.exports = async function handleSubmission(bot, msg) {
     }
   }
 
-  // ✅ Final fix: emoji-safe grid parsing using grapheme filter
   const emojiChars = Array.from(cleanText).filter(char => ['⬛', '⬜', '🟨', '🟩'].includes(char));
   let gridLines = [];
   for (let i = 0; i < emojiChars.length; i += 5) {
@@ -106,7 +105,9 @@ module.exports = async function handleSubmission(bot, msg) {
     if (isFriday) finalScore *= 2;
   }
 
-   const playerEntries = allScores
+  const formattedScore = finalScore.toFixed(1);
+
+  const playerEntries = allScores
     .filter(([date, p, , , a]) => p === player && a !== 'X')
     .map(([date]) => new Date(date))
     .sort((a, b) => a - b);
@@ -128,7 +129,7 @@ module.exports = async function handleSubmission(bot, msg) {
   }
 
   if (!isArchive) {
-    await logScore(player, Math.round(finalScore), wordleNumber, attempts);
+    await logScore(player, formattedScore, wordleNumber, attempts);
   } else {
     await bot.sendMessage(chatId,
       `🗃️ Sorry ${player}, I will score your Archive Wordle but I can only log *today's* game to the leaderboard.`,
@@ -139,7 +140,7 @@ module.exports = async function handleSubmission(bot, msg) {
   const pronouns = playerProfiles[player] || null;
   let reaction;
   try {
-    const aiReaction = await generateReaction(Math.round(finalScore), attempts, player, streak, pronouns);
+    const aiReaction = await generateReaction(formattedScore, attempts, player, streak, pronouns);
     if (aiReaction) {
       reaction = aiReaction;
     } else {
@@ -159,7 +160,7 @@ module.exports = async function handleSubmission(bot, msg) {
   const yestDate = getLocalDateString(yesterday);
   const yestScores = allScores.filter(([date]) => date === yestDate);
   const yestTop = yestScores.reduce((acc, [_, p, s]) => {
-    acc[p] = (acc[p] || 0) + parseInt(s);
+    acc[p] = (acc[p] || 0) + parseFloat(s);
     return acc;
   }, {});
   const sortedYest = Object.entries(yestTop).sort((a, b) => b[1] - a[1]);
@@ -181,7 +182,7 @@ module.exports = async function handleSubmission(bot, msg) {
     return entryDate >= lastMonday && entryDate <= lastSunday;
   });
   const weeklyTotals = lastWeekScores.reduce((acc, [_, p, s]) => {
-    acc[p] = (acc[p] || 0) + parseInt(s);
+    acc[p] = (acc[p] || 0) + parseFloat(s);
     return acc;
   }, {});
   const topWeekly = Object.entries(weeklyTotals).sort((a, b) => b[1] - a[1])[0]?.[0];
@@ -201,7 +202,7 @@ module.exports = async function handleSubmission(bot, msg) {
 
   try {
     await bot.sendMessage(chatId,
-      `${player}${streakText}${trophy}${weeklyCrown}${dailyMedal} scored ${Math.round(finalScore)} points! ${reaction}`,
+      `${player}${streakText}${trophy}${weeklyCrown}${dailyMedal} scored ${formattedScore} points! ${reaction}`,
       { parse_mode: 'Markdown' }
     );
   } catch (e) {
