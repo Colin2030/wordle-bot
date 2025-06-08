@@ -1,10 +1,9 @@
 // /scoring command — explains updated Wordle scoring system with decimal points
 
-module.exports = {
-  command: 'scoring',
-  description: 'Explain the updated Wordle scoring system',
-  execute: async (bot, msg) => {
-    const text = `📊 *Updated Wordle Scoring System v2.0*
+module.exports = async (bot, msg) => {
+  if (!/^\/scoring/i.test(msg.text)) return;
+
+  const text = `📊 *Updated Wordle Scoring System v2.0*
 
 Scoring is now more nuanced and uses *decimal points* to reduce ties. Here’s how it works:
 
@@ -31,6 +30,5 @@ Each guess line earns points based on:
 
 To view your actual grid score logic, use /debugscore (coming soon!)`;
 
-    await bot.sendMessage(msg.chat.id, text, { parse_mode: 'Markdown' });
-  }
+  await bot.sendMessage(msg.chat.id, text, { parse_mode: 'Markdown' });
 };
