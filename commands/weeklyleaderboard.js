@@ -1,3 +1,4 @@
+// /weeklyleaderboard — shows this week’s scores with decimal precision
 module.exports = function weeklyleaderboard(bot, getAllScores, groupChatId) {
   bot.onText(/\/weeklyleaderboard(@\w+)?/, async (msg) => {
     const chatId = msg.chat.id;
@@ -15,12 +16,14 @@ module.exports = function weeklyleaderboard(bot, getAllScores, groupChatId) {
     for (const [date, player, score] of scores) {
       const entryDate = new Date(date);
       if (entryDate >= monday && entryDate <= now) {
-        leaderboard[player] = (leaderboard[player] || 0) + parseInt(score);
+        leaderboard[player] = (leaderboard[player] || 0) + parseFloat(score);
       }
     }
 
     const sorted = Object.entries(leaderboard).sort((a, b) => b[1] - a[1]);
-    let text = `📅 *This Week's Wordle Legends:*\n\n`;
+    let text = `📅 *This Week's Wordle Legends:*
+
+`;
 
     if (sorted.length === 0) {
       text += `No scores yet this week. Get Wordling! 🎯`;
@@ -30,7 +33,7 @@ module.exports = function weeklyleaderboard(bot, getAllScores, groupChatId) {
         if (index === 0) medal = '🏆';
         else if (index === 1) medal = '🥈';
         else if (index === 2) medal = '🥉';
-        text += `${index + 1}. ${medal} ${player}: ${score} pts\n`;
+        text += `${index + 1}. ${medal} ${player}: ${score.toFixed(1)} pts\n`;
       });
     }
 
