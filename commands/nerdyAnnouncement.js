@@ -11,6 +11,19 @@ module.exports = function nerdyAnnouncement(bot, _, groupChatId) {
       + `Type /help to explore your new arsenal of commands.\n\n`
       + `Good luck, Eloise – the competition is *fierce*. 🔥\n\n`;
 
-  bot.sendMessage(groupChatId, welcome + announcement, { parse_mode: 'Markdown' });
+    const announcement = `🧠 *Scoring V2 is live!* 🧠\n\n`
+      + `Heads up, forensic Wordlers! 🧬🔍\n\n`
+      + `We’ve overhauled the scoring algorithm — and yes, it’s *finally deterministic*. Here's what's new:\n\n`
+      + `🟩 Early greens now get higher weight — we reward front-loading your logic.\n`
+      + `🟨 Yellows matter too (but no bonus for repeating evidence).\n`
+      + `🟨➜🟩 transitions are now traceable and rewarded.\n`
+      + `⬛ All-gray lines? Expect a minor penalty — no signal = no glory.\n`
+      + `🎯 With scores down to 0.1 divisions, ties should now be rarer than a clean MD5 collision.\n\n`
+      + `👀 All new submissions will be scored with version 2.0 of the truth engine™.\n\n`
+      + `➤ Post your results\n`
+      + `➤ Trust the output\n`
+      + `➤ Respect the protocol 🧑‍💻`;
+
+    bot.sendMessage(groupChatId, welcome + announcement, { parse_mode: 'Markdown' });
   });
 };
