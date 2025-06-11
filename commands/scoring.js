@@ -1,6 +1,6 @@
 // commands/scoring.js — explains updated Wordle scoring system with decimal points
 
-module.exports = function scoringCommand(bot, groupChatId) {
+module.exports = function scoringCommand(bot, _, groupChatId) {
   bot.onText(/\/scoring(@\w+)?/, (msg) => {
     const chatId = msg.chat.id;
     if (String(chatId) !== String(groupChatId)) return;
