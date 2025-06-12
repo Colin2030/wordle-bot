@@ -29,7 +29,7 @@ module.exports = function(bot, getAllScores, groupChatId) {
     if (sorted.length < 3) return; // Require at least 3 players to trigger commentary
 
     const summaryList = sorted.map(([player, score]) => `${player}: ${score}`).join('\n');
-    const basePrompt = `Here are the Wordle scores so far today:\n${summaryList}\n\nWrite a witty, cheeky lunchtime commentary in the style of a sarcastic UK comedian. Keep it under 50 words. Use UK English. Emojis welcome. Don’t include scores, just reactions.`;
+    const basePrompt = `Here are the Wordle scores so far today:\n${summaryList}\n\nWrite a witty, cheeky lunchtime summary. Keep it under 50 words. Use UK English and no football or sports references. Emojis welcome. Don’t include scores, just reactions.`;
     const sassyPrompt = `It's Friday. Be sassier and more theatrical with your commentary. Still keep it under 50 words.`;
 
     const prompt = isFriday ? `${basePrompt}\n\n${sassyPrompt}` : basePrompt;
