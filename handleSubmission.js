@@ -1,5 +1,6 @@
-// Updated handleSubmission.js — now shows decimal scores to reduce ties
+// Updated handleSubmission.js — now uses robust streak logic
 const { getAllScores, logScore, getLocalDateString, isMonthlyChampion } = require('./utils');
+const { calculateCurrentAndMaxStreak } = require('./utils/streakUtils');
 const { generateReaction } = require('./openaiReaction');
 const { reactionThemes } = require('./fallbackreactions');
 const playerProfiles = require('./playerProfiles');
@@ -40,7 +41,6 @@ module.exports = async function handleSubmission(bot, msg) {
   for (let i = 0; i < emojiChars.length; i += 5) {
     gridLines.push(emojiChars.slice(i, i + 5).join(''));
   }
-  console.log(`[DEBUG] Parsed grid lines (${gridLines.length}):`, gridLines);
 
   let finalScore = 0;
   if (attempts !== 'X') {
@@ -107,29 +107,18 @@ module.exports = async function handleSubmission(bot, msg) {
 
   const formattedScore = finalScore.toFixed(1);
 
-  const playerEntries = allScores
+  const playedDates = allScores
     .filter(([date, p, , , a]) => p === player && a !== 'X')
-    .map(([date]) => new Date(date))
-    .sort((a, b) => a - b);
+    .map(([date]) => date);
 
   if (!isArchive) {
-    playerEntries.push(new Date(today));
+    playedDates.push(today);
   }
 
-  let streak = 1;
-  for (let i = playerEntries.length - 1; i > 0; i--) {
-    const prev = playerEntries[i - 1];
-    const curr = playerEntries[i];
-    const diffDays = Math.round((curr - prev) / (1000 * 60 * 60 * 24));
-    if (diffDays === 1) {
-      streak++;
-    } else {
-      break;
-    }
-  }
+  const { current: streak, max: maxStreak } = calculateCurrentAndMaxStreak(playedDates);
 
   if (!isArchive) {
-    await logScore(player, formattedScore, wordleNumber, attempts);
+    await logScore(player, formattedScore, wordleNumber, attempts, streak, maxStreak);
   } else {
     await bot.sendMessage(chatId,
       `🗃️ Sorry ${player}, I will score your Archive Wordle but I can only log *today's* game to the leaderboard.`,
@@ -205,8 +194,24 @@ module.exports = async function handleSubmission(bot, msg) {
       `${player}${streakText}${trophy}${weeklyCrown}${dailyMedal} scored ${formattedScore} points! ${reaction}`,
       { parse_mode: 'Markdown' }
     );
+	
+// 🎉 Milestone Streak Announcements
+const milestoneMessages = {
+  10: "🔥 You've hit a 10-day streak! Double digits, baby!",
+  20: "🔥🔥 You're on fire! 20-day streak achieved!",
+  30: "🔥🔥🔥 One month strong! That's dedication!",
+  50: "🔥🔥🔥🔥 50 days?! You're a Wordle warrior!",
+  100: "🔥🔥🔥🔥🔥 💯 You're unstoppable. 100-day streak!"
+};
+
+if (milestoneMessages[streak]) {
+  await bot.sendMessage(chatId,
+    `🎉 *Streak Milestone for ${player}!* 🎉\n\n${milestoneMessages[streak]}`,
+    { parse_mode: 'Markdown' }
+  );
+}
+
   } catch (e) {
     console.error("❌ Failed to send Wordle reply message:", e);
   }
 };
-console.log("✅ handleSubmission file reached end of execution path");
