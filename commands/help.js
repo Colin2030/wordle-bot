@@ -16,6 +16,7 @@ module.exports = function help(bot, _, groupChatId) {
       + `/rules - The official Wordle creed 📜\n`
       + `/scoring - Scoring explained 🎯\n`
       + `/debugscore - Run a test score breakdown 🧪\n`
+      + `/philosophy - Why we score like we do 🧠\n`
       + `/help - List all commands 🆘\n`
       + `/about - Info about this bot ℹ️\n\n`
       + `Post your Wordle score anytime to compete! 🎯`;
