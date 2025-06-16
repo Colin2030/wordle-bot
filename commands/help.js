@@ -13,6 +13,7 @@ module.exports = function help(bot, _, groupChatId) {
       + `/lastweekchamp - Last week's champion 👑\n`
       + `/myrank - See your stats 🏅\n`
       + `/streakleaderboard - See the top current streaks 🔥\n`
+      + `/streakgraph - Graph your 2-week streak 📊\n`
       + `/rules - The official Wordle creed 📜\n`
       + `/scoring - Scoring explained 🎯\n`
       + `/debugscore - Run a test score breakdown 🧪\n`
