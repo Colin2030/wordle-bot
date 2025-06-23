@@ -2,12 +2,16 @@ const cron = require('node-cron');
 
 module.exports = function midweekStreakCron(bot, groupChatId, getAllScores) {
   cron.schedule('0 10 * * 3', async () => {
+    console.log("🕘 Midweek streak cron triggered");
+
     try {
       const scores = await getAllScores();
       const streakMap = {};
 
       for (const row of scores) {
         const [date, player, , , , currentStreak, maxStreak] = row;
+        if (!player) continue;
+
         const current = parseInt(currentStreak || '0', 10);
         const max = parseInt(maxStreak || '0', 10);
 
@@ -17,10 +21,14 @@ module.exports = function midweekStreakCron(bot, groupChatId, getAllScores) {
       }
 
       const sorted = Object.entries(streakMap)
+        .filter(([_, s]) => s.current > 0)
         .sort((a, b) => b[1].current - a[1].current)
         .slice(0, 5);
 
-      if (sorted.length === 0) return;
+      if (sorted.length === 0) {
+        console.log("ℹ️ Midweek streak cron: no valid streak data.");
+        return;
+      }
 
       let text = `🔥 *Midweek Wordle Streak Watch!*\n\n`;
       sorted.forEach(([player, { current, max }], i) => {
