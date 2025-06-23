@@ -1,4 +1,7 @@
 // Mid-month leaderboard reminder — runs at 8AM on the 15th
+
+const cron = require('node-cron');
+
 cron.schedule('0 8 15 * *', async () => {
   const scores = await getAllScores();
   const now = new Date();
