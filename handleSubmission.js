@@ -180,7 +180,8 @@ module.exports = async function handleSubmission(bot, msg) {
 
   let streakEmoji = '';
   if (streak === 1) streakEmoji = ' 💩';
-  else if (streak >= 100) streakEmoji = ' 🔥🔥🔥🔥🔥';
+  else if (streak >= 100) streakEmoji = ' 💥';
+  else if (streak >= 75) streakEmoji = ' 🔥🔥🔥🔥🔥';
   else if (streak >= 50) streakEmoji = ' 🔥🔥🔥🔥';
   else if (streak >= 30) streakEmoji = ' 🔥🔥🔥';
   else if (streak >= 20) streakEmoji = ' 🔥🔥';
@@ -201,7 +202,8 @@ const milestoneMessages = {
   20: "🔥🔥 You're on fire! 20-day streak achieved!",
   30: "🔥🔥🔥 One month strong! That's dedication!",
   50: "🔥🔥🔥🔥 50 days?! You're a Wordle warrior!",
-  100: "🔥🔥🔥🔥🔥 💯 You're unstoppable. 100-day streak!"
+  75: "🔥🔥🔥🔥🔥 You're unstoppable. 75-day streak!",
+  100: "💥 You've reached 100! Amazing dedication!"
 };
 
 if (milestoneMessages[streak]) {
