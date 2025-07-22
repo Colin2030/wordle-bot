@@ -27,18 +27,18 @@ module.exports = function handleNewChatMembers(bot, _, groupChatId) {
     });
   });
 
-  // Manual /welcome command with multiple @usernames
-  bot.onText(/\/welcome\s*((?:@\w+\s*)+)/, (msg, match) => {
-    const chatId = msg.chat.id;
-    if (String(chatId) !== String(groupChatId)) return;
+ // Manual /welcome command with multiple @usernames
+bot.onText(/\/welcome(?:\s*((?:@\w+\s*)+))?/, (msg, match) => {
+  const chatId = msg.chat.id;
+  if (String(chatId) !== String(groupChatId)) return;
 
-    const mentionsRaw = match[1] || '';
-    const mentions = mentionsRaw.match(/@\w+/g) || [];
+  const mentionsRaw = match[1] || '';
+  const mentions = mentionsRaw.match(/@\w+/g) || [];
 
-    const message = mentions.length > 0
-      ? getWelcomeMessage(mentions)
-      : getWelcomeMessage();
+  const message = mentions.length > 0
+    ? getWelcomeMessage(mentions)
+    : getWelcomeMessage();
 
-    bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
-  });
+  bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+});
 };
