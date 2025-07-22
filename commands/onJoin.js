@@ -1,20 +1,38 @@
 // commands/onJoin.js
-module.exports = function handleNewChatMembers(bot, groupChatId) {
+
+function getWelcomeMessage(name, username) {
+  const displayName = username ? `@${username}` : name || 'Wordler';
+
+  return `👋 *Welcome to Wordle Workers*, ${displayName}!\n\n`
+    + `This is no ordinary group – it's a battlefield of wits and words. 🧠\n\n`
+    + `📜 *Quick Rules:*\n`
+    + `• Submit your Wordle score daily — no lurking!\n`
+    + `• Fridays = *DOUBLE POINTS*. Chaos reigns. 🔥\n`
+    + `• Compete for daily, weekly, and monthly glory. 👑\n\n`
+    + `Type /help to explore commands.\n\n`
+    + `Good luck — let's see if you've got what it takes... 🎯`;
+}
+
+module.exports = function handleNewChatMembers(bot, _, groupChatId) {
+  // Auto welcome
   bot.on('new_chat_members', (msg) => {
     const chatId = msg.chat.id;
     if (String(chatId) !== String(groupChatId)) return;
 
     msg.new_chat_members.forEach((member) => {
-      const welcomeMessage = `👋 *Welcome to Wordle Workers*, ${member.first_name}!\n\n`
-        + `This is no ordinary group – it's a battlefield of wits and words. 🧠\n\n`
-        + `Here’s what you need to know:\n`
-        + `• Submit your Wordle score daily – or be forgotten. 🕳️\n`
-        + `• Fridays = *DOUBLE POINTS*. Chaos reigns. 🔥\n`
-        + `• Glory awaits at daily, weekly, and monthly levels. 👑\n\n`
-        + `Type /help to see what you're up against.\n\n`
-        + `Let's see if you’ve got what it takes... 🎯`;
-
-      bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
+      const message = getWelcomeMessage(member.first_name, member.username);
+      bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     });
+  });
+
+  // Manual /welcome command
+  bot.onText(/\/welcome(@\w+)?/, (msg) => {
+    const chatId = msg.chat.id;
+    if (String(chatId) !== String(groupChatId)) return;
+
+    const name = msg.from.first_name;
+    const username = msg.from.username;
+    const message = getWelcomeMessage(name, username);
+    bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
   });
 };
