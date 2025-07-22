@@ -1,9 +1,9 @@
 // commands/onJoin.js
 
-function getWelcomeMessage(name, username, includeName = true) {
-  const displayName = username ? `@${username}` : name || 'Wordler';
+function getWelcomeMessage(namesList = []) {
+  const namesText = namesList.length > 0 ? namesList.join(', ') : 'Wordlers';
 
-  return `👋 *Welcome to Wordle Workers*${includeName ? `, ${displayName}` : ''}! 🎉\n\n`
+  return `👋 *Welcome to Wordle W🧠kers*, ${namesText}! 🎉\n\n`
     + `This is no ordinary group – it's a battlefield of wits and words. 🧠\n\n`
     + `📜 *Quick Rules:*\n`
     + `• Submit your Wordle score daily — no lurking!\n`
@@ -20,20 +20,24 @@ module.exports = function handleNewChatMembers(bot, _, groupChatId) {
     if (String(chatId) !== String(groupChatId)) return;
 
     msg.new_chat_members.forEach((member) => {
-      const message = getWelcomeMessage(member.first_name, member.username, true);
+      const name = member.first_name;
+      const username = member.username ? `@${member.username}` : name;
+      const message = getWelcomeMessage([username]);
       bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     });
   });
 
-  // Manual /welcome command with optional @username
-  bot.onText(/\/welcome(?:\s+(@\w+))?/, (msg, match) => {
+  // Manual /welcome command with multiple @usernames
+  bot.onText(/\/welcome\s*((?:@\w+\s*)+)/, (msg, match) => {
     const chatId = msg.chat.id;
     if (String(chatId) !== String(groupChatId)) return;
 
-    const mentionedUsername = match[1]; // will be undefined if not provided
-    const message = mentionedUsername
-      ? getWelcomeMessage('', mentionedUsername.replace('@', ''), true)
-      : getWelcomeMessage('', '', false);
+    const mentionsRaw = match[1] || '';
+    const mentions = mentionsRaw.match(/@\w+/g) || [];
+
+    const message = mentions.length > 0
+      ? getWelcomeMessage(mentions)
+      : getWelcomeMessage();
 
     bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
   });
