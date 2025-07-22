@@ -3,7 +3,7 @@
 function getWelcomeMessage(namesList = []) {
   const namesText = namesList.length > 0 ? namesList.join(', ') : 'Wordlers';
 
-  return `👋 *Welcome to Wordle W🧠kers*, ${namesText}! 🎉\n\n`
+  return `👋 *Welcome to Wordle Workers*, ${namesText}! 🎉\n\n`
     + `This is no ordinary group – it's a battlefield of wits and words. 🧠\n\n`
     + `📜 *Quick Rules:*\n`
     + `• Submit your Wordle score daily — no lurking!\n`
@@ -14,7 +14,7 @@ function getWelcomeMessage(namesList = []) {
 }
 
 module.exports = function handleNewChatMembers(bot, _, groupChatId) {
-  // Automatic welcome on joining
+  // Automatic welcome when someone joins
   bot.on('new_chat_members', (msg) => {
     const chatId = msg.chat.id;
     if (String(chatId) !== String(groupChatId)) return;
@@ -27,18 +27,18 @@ module.exports = function handleNewChatMembers(bot, _, groupChatId) {
     });
   });
 
- // Manual /welcome command with multiple @usernames
-bot.onText(/\/welcome(?:\s*((?:@\w+\s*)+))?/, (msg, match) => {
-  const chatId = msg.chat.id;
-  if (String(chatId) !== String(groupChatId)) return;
+  // Manual /welcome with optional multiple @usernames
+  bot.onText(/\/welcome(?:\s+(.*))?/i, (msg, match) => {
+    const chatId = msg.chat.id;
+    if (String(chatId) !== String(groupChatId)) return;
 
-  const mentionsRaw = match[1] || '';
-  const mentions = mentionsRaw.match(/@\w+/g) || [];
+    const mentionsRaw = match[1] || '';
+    const mentions = mentionsRaw.match(/@\w+/g) || [];
 
-  const message = mentions.length > 0
-    ? getWelcomeMessage(mentions)
-    : getWelcomeMessage();
+    const message = mentions.length > 0
+      ? getWelcomeMessage(mentions)
+      : getWelcomeMessage();
 
-  bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
-});
+    bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+  });
 };
