@@ -3,7 +3,7 @@
 function getWelcomeMessage(namesList = []) {
   const namesText = namesList.length > 0 ? namesList.join(', ') : 'Wordlers';
 
-  return `👋 *Welcome to Wordle Workers*, ${namesText}! 🎉\n\n`
+  return `👋 *Welcome to W🧠dle Workers*, ${namesText}! 🎉\n\n`
     + `This is no ordinary group – it's a battlefield of wits and words. 🧠\n\n`
     + `📜 *Quick Rules:*\n`
     + `• Submit your Wordle score daily — no lurking!\n`
