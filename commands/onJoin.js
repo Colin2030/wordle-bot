@@ -14,7 +14,7 @@ function getWelcomeMessage(name, username) {
 }
 
 module.exports = function handleNewChatMembers(bot, _, groupChatId) {
-  // Auto welcome
+  // Automatic welcome
   bot.on('new_chat_members', (msg) => {
     const chatId = msg.chat.id;
     if (String(chatId) !== String(groupChatId)) return;
