@@ -11,8 +11,8 @@ async function generateReaction(score, attempts, player, streak = null, pronouns
     const num = parseInt(attempts);
     switch (num) {
       case 1: mood = "awe-struck and theatrical — like witnessing a miracle on grass"; break;
-      case 2: mood = "over-the-top and giddy — imagine a pundit losing their mind at a screamer"; break;
-      case 3: mood = "punchy and impressed — like a seasoned commentator spotting a rising star"; break;
+      case 2: mood = "over-the-top and giddy"; break;
+      case 3: mood = "punchy and impressed"; break;
       case 4: mood = "mildly impressed but withholding praise — classic backhanded compliment"; break;
       case 5: mood = "deadpan, dry and eyebrow-raised — they just about scraped through"; break;
       case 6: mood = "mocking, exhausted and dramatic — like it was painful to witness"; break;
@@ -21,14 +21,12 @@ async function generateReaction(score, attempts, player, streak = null, pronouns
   }
 
   const personas = [
-    "a Premier League pundit in a post-match meltdown",
     "a very risque comedian, like Julian Clary, who loves a rude double entendre",
     "a camp 90s gameshow host hyped on sugar",
     "an over zealous childrens TV presenter",
     "a dour, middle aged man who is tired of life and only speaks in sarcasm. Not understanding the point of Wordle",
     "a cutting high-brow political journalist, very condescending",
     "an extremely posh Oxbridge don pretending to understand commoners",
-    "a football manager trying to stay diplomatic",
     "a teenage esports streamer with way too much energy",
     "a sarcastic pub quiz host with a hangover",
     "a wrestling commentator who thinks Wordle is real combat"
