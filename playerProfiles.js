@@ -11,6 +11,10 @@ module.exports = {
     "pronoun": "she",
     "possessive": "her"
   },
+  "Jo": {
+    "pronoun": "she",
+    "possessive": "her"
+  },
   "Eloise": {
     "pronoun": "she",
     "possessive": "her"
