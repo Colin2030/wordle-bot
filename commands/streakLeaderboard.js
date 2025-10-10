@@ -1,6 +1,7 @@
 // /commands/streakLeaderboard.js
-// Current streak leaderboard (latest row per player), HTML-safe, robust sorting
-// Signature matches your command loader: (bot, getAllScores, groupChatId)
+// Recomputes streaks from raw rows (like handleSubmission), HTML-safe output.
+
+const { calculateCurrentAndMaxStreak } = require('../utils/streakUtils');
 
 module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
   // Minimal HTML escaper for Telegram HTML mode
@@ -12,7 +13,7 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
       .replace(/"/g, '&quot;');
   }
 
-  // support /streakleaderboard and bot mentions (case-insensitive)
+  // /streakleaderboard (case-insensitive, with optional @mention)
   bot.onText(/\/streakleaderboard(?:@\w+)?/i, async (msg) => {
     const chatId = msg.chat.id;
     if (String(chatId) !== String(groupChatId)) return;
@@ -24,39 +25,33 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
         return;
       }
 
-      // Build latest-by-player map: { player -> { date, current, max } }
-      const latest = new Map();
+      // Build: player -> Set of dates they played (attempts !== 'X')
+      // Row shape expected: [date, player, score, wordleNo, attempts, currentStreak, maxStreak]
+      const datesByPlayer = new Map();
       for (const row of rows) {
-        // Expected shape: [date, player, score, wordleNo, attempts, currentStreak, maxStreak]
-        if (!Array.isArray(row) || row.length < 7) continue;
-
-        const [date, player, , , , currentStreak, maxStreak] = row;
+        if (!Array.isArray(row) || row.length < 5) continue;
+        const [date, player, , , attempts] = row;
         if (!player || !date) continue;
-
-        // Keep the newest date per player (rows may not be sorted). Prefer ISO YYYY-MM-DD; if not,
-        // Date() still gives a stable ordering.
-        const prev = latest.get(player);
-        const newer =
-          !prev ||
-          // if ISO, string compare works; else fall back to numeric Date
-          (date > prev.date) ||
-          (isNaN(Date.parse(prev.date)) && !isNaN(Date.parse(date))) ||
-          (Date.parse(date) > Date.parse(prev.date));
-
-        if (newer) {
-          const current = Number.parseInt(currentStreak, 10) || 0;
-          const max = Number.parseInt(maxStreak, 10) || 0;
-          latest.set(player, { date, current, max });
-        }
+        if (String(attempts).toUpperCase() === 'X') continue; // don't count fails as "played"
+        if (!datesByPlayer.has(player)) datesByPlayer.set(player, new Set());
+        datesByPlayer.get(player).add(String(date));
       }
 
-      if (latest.size === 0) {
+      if (datesByPlayer.size === 0) {
         await bot.sendMessage(chatId, '🤷‍♀️ No streaks found yet. Go solve some Wordles!');
         return;
       }
 
+      // Recompute streaks just like handleSubmission does
+      const computed = [];
+      for (const [player, dateSet] of datesByPlayer.entries()) {
+        const playedDates = Array.from(dateSet);
+        const { current, max } = calculateCurrentAndMaxStreak(playedDates);
+        computed.push([player, { current, max }]);
+      }
+
       // Sort: current desc, then max desc, then name asc (case-insensitive)
-      const sorted = [...latest.entries()]
+      const sorted = computed
         .sort((a, b) => {
           const ca = a[1].current, cb = b[1].current;
           if (cb !== ca) return cb - ca;
@@ -74,7 +69,6 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
 
       await bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
     } catch (err) {
-      // Log defensively (Render sometimes swallows objects without .stack)
       try {
         console.error('Error in /streakleaderboard:', err && err.stack ? err.stack : err);
       } catch {}
