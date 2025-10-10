@@ -85,7 +85,7 @@ function moodFor(attempts, score) {
   }
 }
 
-ffunction personaFor(attempts, score) {
+function personaFor(attempts, score) {
   const n = attempts === 'X' ? 7 : parseInt(attempts, 10); // normalize once
 
   if (score === 0 || attempts === 'X' || n === 6) {
