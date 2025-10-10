@@ -1,8 +1,12 @@
 // midweekStreakCron.js — recompute streaks, robust date+name normalisation, HTML safe
+// Displays "active" current streak ONLY if last play was within graceDays (today or yesterday).
+
 const cron = require('node-cron');
 const { calculateCurrentAndMaxStreak } = require('../utils/streakUtils');
 
 module.exports = function midweekStreakCron(bot, getAllScores, groupChatId) {
+  const graceDays = 1;
+
   const escapeHtml = (t = '') =>
     String(t)
       .replace(/&/g, '&amp;')
@@ -40,6 +44,20 @@ module.exports = function midweekStreakCron(bot, getAllScores, groupChatId) {
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
+  }
+
+  function todayISO() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function daysBetweenISO(aIso, bIso) {
+    const a = new Date(aIso); a.setHours(0,0,0,0);
+    const b = new Date(bIso); b.setHours(0,0,0,0);
+    return Math.round((b - a) / 86400000);
   }
 
   // Every Wednesday at 10:00 (server time)
@@ -85,11 +103,15 @@ module.exports = function midweekStreakCron(bot, getAllScores, groupChatId) {
         return;
       }
 
+      const today = todayISO();
+
       const computed = [];
-      for (const { display, dates } of players.values()) {
+      for (const { display, dates, latestDateIso } of players.values()) {
         const playedDates = Array.from(dates);
         const { current, max } = calculateCurrentAndMaxStreak(playedDates);
-        computed.push([display, { current, max }]);
+        const gap = daysBetweenISO(latestDateIso, today);
+        const activeCurrent = gap <= graceDays ? current : 0; // recency gate
+        computed.push([display, { current: activeCurrent, max }]);
       }
 
       const top = computed
@@ -103,7 +125,7 @@ module.exports = function midweekStreakCron(bot, getAllScores, groupChatId) {
         .slice(0, 5);
 
       if (top.length === 0) {
-        console.log('ℹ️ Midweek streak cron: no players with streaks > 0.');
+        console.log('ℹ️ Midweek streak cron: no players with active streaks.');
         return;
       }
 

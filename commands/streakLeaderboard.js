@@ -1,9 +1,13 @@
 // /commands/streakLeaderboard.js
-// Recomputes streaks from raw rows, with robust date + name normalisation. HTML-safe output.
+// Recomputes streaks from raw rows, robust date+name normalisation, HTML-safe output.
+// Displays "active" current streak ONLY if last play was within graceDays (today or yesterday).
 
 const { calculateCurrentAndMaxStreak } = require('../utils/streakUtils');
 
 module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
+  // --- Config ---
+  const graceDays = 1; // treat streak as active if last play was within 1 day
+
   // --- Helpers ---
   const escapeHtml = (text = '') =>
     String(text)
@@ -16,14 +20,11 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
     const display = String(raw).normalize('NFKC').replace(/\s+/g, ' ').trim();
     // Strip emojis & punctuation for the *key* so “Alex”, “Alex 🤖”, “Alex-” group together.
     const key = display
-      // remove most emojis
       .replace(/\p{Extended_Pictographic}/gu, '')
-      // remove punctuation/symbols (keep letters/numbers/spaces)
       .replace(/[^\p{L}\p{N}\s]/gu, '')
       .replace(/\s+/g, ' ')
       .trim()
       .toLowerCase();
-
     return { key: key || display.toLowerCase(), display, dateIso };
   }
 
@@ -34,10 +35,10 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
     // Already ISO YYYY-MM-DD?
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
 
-    // Numeric Google Sheets serial date? (days since 1899-12-30)
+    // Google Sheets serial (days since 1899-12-30)
     const n = Number(s);
     if (Number.isFinite(n) && n > 25569 && n < 60000) {
-      const ms = (n - 25569) * 86400000; // convert to Unix ms
+      const ms = (n - 25569) * 86400000;
       const d = new Date(ms);
       const y = d.getUTCFullYear();
       const m = String(d.getUTCMonth() + 1).padStart(2, '0');
@@ -45,9 +46,23 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
       return `${y}-${m}-${day}`;
     }
 
-    // Fallback: Date() parse (handles 10/09/2025, "9 Oct 2025", etc.)
+    // Fallback parse
     const d = new Date(s);
     if (isNaN(d)) return null;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function daysBetweenISO(aIso, bIso) {
+    const a = new Date(aIso); a.setHours(0,0,0,0);
+    const b = new Date(bIso); b.setHours(0,0,0,0);
+    return Math.round((b - a) / 86400000);
+  }
+
+  function todayISO() {
+    const d = new Date();
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
@@ -69,14 +84,14 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
       // Build: key -> { display, dates:Set, latestDateIso }
       const players = new Map();
 
-      // Row shape: [date, player, score, wordleNo, attempts, currentStreak, maxStreak]
+      // Row: [date, player, score, wordleNo, attempts, currentStreak, maxStreak]
       for (const row of rows) {
         if (!Array.isArray(row) || row.length < 5) continue;
         const [dateRaw, nameRaw, scoreRaw, , attemptsRaw] = row;
         if (!nameRaw || !dateRaw) continue;
 
         const dateIso = isoDate(dateRaw);
-        if (!dateIso) continue; // skip unparseable dates
+        if (!dateIso) continue;
 
         const attempts = String(attemptsRaw ?? '').trim();
         const score = Number(scoreRaw);
@@ -92,7 +107,7 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
         entry.dates.add(dateIso);
         if (dateIso > entry.latestDateIso) {
           entry.latestDateIso = dateIso;
-          entry.display = display; // keep the most recent display name
+          entry.display = display; // keep most recent display
         }
       }
 
@@ -101,15 +116,19 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
         return;
       }
 
-      // Recompute streaks just like handleSubmission does
+      const today = todayISO();
+
+      // Recompute streaks and apply recency gate for "active current"
       const computed = [];
-      for (const { display, dates } of players.values()) {
+      for (const { display, dates, latestDateIso } of players.values()) {
         const playedDates = Array.from(dates);
         const { current, max } = calculateCurrentAndMaxStreak(playedDates);
-        computed.push([display, { current, max }]);
+        const gap = daysBetweenISO(latestDateIso, today);
+        const activeCurrent = gap <= graceDays ? current : 0; // gate by recency
+        computed.push([display, { current: activeCurrent, max }]);
       }
 
-      // Sort: current desc, then max desc, then name asc (case-insensitive)
+      // Sort: current desc, then max desc, then name asc
       const sorted = computed
         .sort((a, b) => {
           const ca = a[1].current, cb = b[1].current;
