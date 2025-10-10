@@ -63,6 +63,10 @@ module.exports = {
     "pronoun": "he",
     "possessive": "his"
   },
+  "Marc": {
+    "pronoun": "he",
+    "possessive": "his"
+  },
   "Liam": {
     "pronoun": "he",
     "possessive": "his"

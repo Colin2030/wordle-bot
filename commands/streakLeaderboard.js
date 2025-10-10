@@ -4,13 +4,28 @@
 const { calculateCurrentAndMaxStreak } = require('../utils/streakUtils');
 
 module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
-  // Minimal HTML escaper for Telegram HTML mode
-  function escapeHtml(text = '') {
-    return String(text)
+  // --- Helpers ---
+  const escapeHtml = (text = '') =>
+    String(text)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+
+  function canonicalName(raw = '') {
+    const display = String(raw).normalize('NFKC').replace(/\s+/g, ' ').trim();
+    const key = display.toLowerCase();
+    return { key, display };
+  }
+
+  function isoDate(raw) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    const d = new Date(raw);
+    if (isNaN(d)) return null;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   // /streakleaderboard (case-insensitive, with optional @mention)
@@ -25,29 +40,34 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
         return;
       }
 
-      // Build: player -> Set of dates they played (attempts !== 'X')
-      // Row shape expected: [date, player, score, wordleNo, attempts, currentStreak, maxStreak]
-      const datesByPlayer = new Map();
+      // Build: key -> { display, dates:Set }
+      const players = new Map();
+
       for (const row of rows) {
         if (!Array.isArray(row) || row.length < 5) continue;
-        const [date, player, , , attempts] = row;
-        if (!player || !date) continue;
-        if (String(attempts).toUpperCase() === 'X') continue; // don't count fails as "played"
-        if (!datesByPlayer.has(player)) datesByPlayer.set(player, new Set());
-        datesByPlayer.get(player).add(String(date));
+        const [dateRaw, nameRaw, , , attempts] = row;
+        if (!nameRaw || !dateRaw) continue;
+
+        const date = isoDate(String(dateRaw));
+        if (!date) continue; // skip unparseable dates
+        if (String(attempts).toUpperCase() === 'X') continue; // X doesn't count as "played"
+
+        const { key, display } = canonicalName(nameRaw);
+        if (!players.has(key)) players.set(key, { display, dates: new Set() });
+        players.get(key).dates.add(date);
       }
 
-      if (datesByPlayer.size === 0) {
+      if (players.size === 0) {
         await bot.sendMessage(chatId, '🤷‍♀️ No streaks found yet. Go solve some Wordles!');
         return;
       }
 
       // Recompute streaks just like handleSubmission does
       const computed = [];
-      for (const [player, dateSet] of datesByPlayer.entries()) {
-        const playedDates = Array.from(dateSet);
+      for (const { display, dates } of players.values()) {
+        const playedDates = Array.from(dates);
         const { current, max } = calculateCurrentAndMaxStreak(playedDates);
-        computed.push([player, { current, max }]);
+        computed.push([display, { current, max }]);
       }
 
       // Sort: current desc, then max desc, then name asc (case-insensitive)
