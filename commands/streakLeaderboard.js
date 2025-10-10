@@ -1,10 +1,13 @@
-// streakLeaderboard.js — current streaks (latest row), safe MarkdownV2, tidy sorting
-// Exports with the same signature as your other commands: (bot, getAllScores, groupChatId)
-
+// streakLeaderboard.js — current streaks (latest row), HTML-safe, tidy sorting
+// Signature matches your other commands: (bot, getAllScores, groupChatId)
 module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
-  // Telegram MarkdownV2 requires escaping many characters
-  function escapeMdV2(text = '') {
-    return String(text).replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
+  // Minimal HTML escaper for Telegram HTML mode
+  function escapeHtml(text = '') {
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   // support /streakleaderboard and bot mentions (case-insensitive)
@@ -15,11 +18,7 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
     try {
       const rows = await getAllScores();
       if (!rows || !rows.length) {
-        await bot.sendMessage(
-          chatId,
-          '🤷‍♂️ No data yet — play a few games and try again.',
-          { parse_mode: 'Markdown' }
-        );
+        await bot.sendMessage(chatId, '🤷‍♂️ No data yet — play a few games and try again.');
         return;
       }
 
@@ -40,11 +39,7 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
       }
 
       if (latest.size === 0) {
-        await bot.sendMessage(
-          chatId,
-          '🤷‍♀️ No streaks found yet. Go solve some Wordles!',
-          { parse_mode: 'Markdown' }
-        );
+        await bot.sendMessage(chatId, '🤷‍♀️ No streaks found yet. Go solve some Wordles!');
         return;
       }
 
@@ -59,14 +54,13 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
         })
         .slice(0, 10);
 
-      let text = '🔥 *Top Wordle Streaks*\\n\\n';
+      let text = '🔥 <b>Top Wordle Streaks</b>\n\n';
       sorted.forEach(([name, { current, max }], i) => {
         const medal = i === 0 ? '🏆' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🔥';
-        text += `${i + 1}. ${medal} ${escapeMdV2(name)}: ${current} days (max: ${max})\\n`;
+        text += `${i + 1}. ${medal} ${escapeHtml(name)}: ${current} days (max: ${max})\n`;
       });
 
-      // Use MarkdownV2 to survive names like "Sam_the_Great"
-      await bot.sendMessage(chatId, text, { parse_mode: 'MarkdownV2' });
+      await bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
     } catch (err) {
       console.error('Error in /streakleaderboard:', err);
       await bot.sendMessage(
