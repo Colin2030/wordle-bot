@@ -1,5 +1,7 @@
-// streakLeaderboard.js — current streaks (latest row), HTML-safe, tidy sorting
-// Signature matches your other commands: (bot, getAllScores, groupChatId)
+// /commands/streakLeaderboard.js
+// Current streak leaderboard (latest row per player), HTML-safe, robust sorting
+// Signature matches your command loader: (bot, getAllScores, groupChatId)
+
 module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
   // Minimal HTML escaper for Telegram HTML mode
   function escapeHtml(text = '') {
@@ -17,7 +19,7 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
 
     try {
       const rows = await getAllScores();
-      if (!rows || !rows.length) {
+      if (!Array.isArray(rows) || rows.length === 0) {
         await bot.sendMessage(chatId, '🤷‍♂️ No data yet — play a few games and try again.');
         return;
       }
@@ -25,13 +27,23 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
       // Build latest-by-player map: { player -> { date, current, max } }
       const latest = new Map();
       for (const row of rows) {
-        // Expected shape: [date, player, score, wordleNo, attempts, current, max]
+        // Expected shape: [date, player, score, wordleNo, attempts, currentStreak, maxStreak]
+        if (!Array.isArray(row) || row.length < 7) continue;
+
         const [date, player, , , , currentStreak, maxStreak] = row;
         if (!player || !date) continue;
 
-        // Keep the newest date per player (rows may not be sorted)
+        // Keep the newest date per player (rows may not be sorted). Prefer ISO YYYY-MM-DD; if not,
+        // Date() still gives a stable ordering.
         const prev = latest.get(player);
-        if (!prev || date > prev.date) {
+        const newer =
+          !prev ||
+          // if ISO, string compare works; else fall back to numeric Date
+          (date > prev.date) ||
+          (isNaN(Date.parse(prev.date)) && !isNaN(Date.parse(date))) ||
+          (Date.parse(date) > Date.parse(prev.date));
+
+        if (newer) {
           const current = Number.parseInt(currentStreak, 10) || 0;
           const max = Number.parseInt(maxStreak, 10) || 0;
           latest.set(player, { date, current, max });
@@ -43,14 +55,14 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
         return;
       }
 
-      // Sort: current desc, then max desc, then name asc
+      // Sort: current desc, then max desc, then name asc (case-insensitive)
       const sorted = [...latest.entries()]
         .sort((a, b) => {
           const ca = a[1].current, cb = b[1].current;
           if (cb !== ca) return cb - ca;
           const ma = a[1].max, mb = b[1].max;
           if (mb !== ma) return mb - ma;
-          return a[0].localeCompare(b[0], 'en', { sensitivity: 'base' });
+          return String(a[0]).localeCompare(String(b[0]), 'en', { sensitivity: 'base' });
         })
         .slice(0, 10);
 
@@ -62,11 +74,13 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
 
       await bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
     } catch (err) {
-      console.error('Error in /streakleaderboard:', err);
-      await bot.sendMessage(
-        chatId,
-        '⚠️ Couldn’t build the streak leaderboard just now. Try again shortly.'
-      );
+      // Log defensively (Render sometimes swallows objects without .stack)
+      try {
+        console.error('Error in /streakleaderboard:', err && err.stack ? err.stack : err);
+      } catch {}
+      try {
+        await bot.sendMessage(chatId, '⚠️ Couldn’t build the streak leaderboard just now. Try again shortly.');
+      } catch {}
     }
   });
 };
