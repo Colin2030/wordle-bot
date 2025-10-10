@@ -85,15 +85,17 @@ function moodFor(attempts, score) {
   }
 }
 
-function personaFor(attempts, score) {
-  if (score === 0 || attempts === 'X' || attempts === 6) {
+ffunction personaFor(attempts, score) {
+  const n = attempts === 'X' ? 7 : parseInt(attempts, 10); // normalize once
+
+  if (score === 0 || attempts === 'X' || n === 6) {
     return pickWeighted([
       { weight: 5, list: PERSONAS.brutal },
       { weight: 2, list: PERSONAS.highbrow },
       { weight: 1, list: PERSONAS.niche },
     ]);
   }
-  const n = parseInt(attempts, 10);
+
   if (n === 1 || n === 2) {
     return pickWeighted([
       { weight: 4, list: PERSONAS.cheerful },
@@ -102,6 +104,7 @@ function personaFor(attempts, score) {
       { weight: 1, list: PERSONAS.niche },
     ]);
   }
+
   return pickWeighted([
     { weight: 3, list: PERSONAS.posh },
     { weight: 3, list: PERSONAS.highbrow },
@@ -110,6 +113,7 @@ function personaFor(attempts, score) {
     { weight: 1, list: PERSONAS.niche },
   ]);
 }
+
 
 function spice() {
   const spices = [
