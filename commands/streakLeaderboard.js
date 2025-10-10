@@ -1,13 +1,13 @@
-// streakLeaderboard.js — current streaks (latest row), safe Markdown, tidy sorting
-const { getAllScores } = require('../utils');
+// streakLeaderboard.js — current streaks (latest row), safe MarkdownV2, tidy sorting
+// Exports with the same signature as your other commands: (bot, getAllScores, groupChatId)
 
-// Telegram MarkdownV2 requires escaping many characters
-function escapeMdV2(text = '') {
-  return String(text).replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
-}
+module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
+  // Telegram MarkdownV2 requires escaping many characters
+  function escapeMdV2(text = '') {
+    return String(text).replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
+  }
 
-module.exports = function streakLeaderboard(bot, groupChatId) {
-  // support /streakleaderboard and bot mentions
+  // support /streakleaderboard and bot mentions (case-insensitive)
   bot.onText(/\/streakleaderboard(?:@\w+)?/i, async (msg) => {
     const chatId = msg.chat.id;
     if (String(chatId) !== String(groupChatId)) return;
@@ -26,12 +26,11 @@ module.exports = function streakLeaderboard(bot, groupChatId) {
       // Build latest-by-player map: { player -> { date, current, max } }
       const latest = new Map();
       for (const row of rows) {
-        // Expected shape (from your logger): [date, player, score, wordleNo, attempts, current, max]
+        // Expected shape: [date, player, score, wordleNo, attempts, current, max]
         const [date, player, , , , currentStreak, maxStreak] = row;
-
         if (!player || !date) continue;
 
-        // Keep the newest date (rows may not be sorted)
+        // Keep the newest date per player (rows may not be sorted)
         const prev = latest.get(player);
         if (!prev || date > prev.date) {
           const current = Number.parseInt(currentStreak, 10) || 0;
