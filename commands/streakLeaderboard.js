@@ -1,6 +1,6 @@
 // /commands/streakLeaderboard.js
 // Recomputes streaks from raw rows, robust date+name normalisation, HTML-safe output.
-// Displays "active" current streak ONLY if last play was within graceDays (today or yesterday).
+// Shows an "active" current streak ONLY if last play was within graceDays (today or yesterday).
 
 const { calculateCurrentAndMaxStreak } = require('../utils/streakUtils');
 
@@ -16,7 +16,7 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
 
-  function canonicalName(raw = '', dateIso = '0000-00-00') {
+  function canonicalName(raw = '') {
     const display = String(raw).normalize('NFKC').replace(/\s+/g, ' ').trim();
     // Strip emojis & punctuation for the *key* so “Alex”, “Alex 🤖”, “Alex-” group together.
     const key = display
@@ -25,7 +25,7 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
       .replace(/\s+/g, ' ')
       .trim()
       .toLowerCase();
-    return { key: key || display.toLowerCase(), display, dateIso };
+    return { key: key || display.toLowerCase(), display };
   }
 
   function isoDate(raw) {
@@ -81,7 +81,7 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
         return;
       }
 
-      // Build: key -> { display, dates:Set, latestDateIso }
+      // Build: key -> { display, dates:Set }
       const players = new Map();
 
       // Row: [date, player, score, wordleNo, attempts, currentStreak, maxStreak]
@@ -93,22 +93,18 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
         const dateIso = isoDate(dateRaw);
         if (!dateIso) continue;
 
-        const attempts = String(attemptsRaw ?? '').trim();
+        const attempts = String(attemptsRaw ?? '').trim().toUpperCase();
         const score = Number(scoreRaw);
 
-        // Consider "played" if attempts != 'X' OR score > 0 (covers any weird logging)
-        const played = attempts.toUpperCase() !== 'X' || (Number.isFinite(score) && score > 0);
+        // Consider "played" only when an actual game was completed:
+        // - attempts != 'X' (completed), OR
+        // - score > 0 (belt-and-braces for any legacy rows)
+        const played = attempts !== 'X' || (Number.isFinite(score) && score > 0);
         if (!played) continue;
 
-        const { key, display } = canonicalName(nameRaw, dateIso);
-        if (!players.has(key)) players.set(key, { display, dates: new Set(), latestDateIso: '0000-00-00' });
-
-        const entry = players.get(key);
-        entry.dates.add(dateIso);
-        if (dateIso > entry.latestDateIso) {
-          entry.latestDateIso = dateIso;
-          entry.display = display; // keep most recent display
-        }
+        const { key, display } = canonicalName(nameRaw);
+        if (!players.has(key)) players.set(key, { display, dates: new Set() });
+        players.get(key).dates.add(dateIso);
       }
 
       if (players.size === 0) {
@@ -120,11 +116,12 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
 
       // Recompute streaks and apply recency gate for "active current"
       const computed = [];
-      for (const { display, dates, latestDateIso } of players.values()) {
-        const playedDates = Array.from(dates);
+      for (const { display, dates } of players.values()) {
+        const playedDates = Array.from(dates).sort();       // ISO sorts lexicographically = chronologically
+        const lastPlayIso = playedDates[playedDates.length - 1]; // derive last play from the actual set
         const { current, max } = calculateCurrentAndMaxStreak(playedDates);
-        const gap = daysBetweenISO(latestDateIso, today);
-        const activeCurrent = gap <= graceDays ? current : 0; // gate by recency
+        const gap = daysBetweenISO(lastPlayIso, today);
+        const activeCurrent = gap <= graceDays ? current : 0;    // gate by recency (today or yesterday)
         computed.push([display, { current: activeCurrent, max }]);
       }
 
