@@ -6,7 +6,7 @@
 
 module.exports = function fridayDoublePoints(bot, getAllScores, groupChatId) {
   const cron = require('node-cron');
-  const { generateThemeQuip } = require('./openaiReaction');
+  const { generateThemeQuip } = require('../openaiReaction');
 
   // --- Helpers ---
   function isoWeekNumber(d = new Date()) {
