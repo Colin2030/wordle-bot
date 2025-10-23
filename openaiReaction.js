@@ -1,4 +1,4 @@
-// openaiReaction.js — spicier + rivals + theme quips
+// openaiReaction.js — complimentary for 1–3, acerbic for 4–6/X + rivals + theme quips
 const { OpenAI } = require('openai');
 const crypto = require('crypto');
 
@@ -47,8 +47,8 @@ const PERSONAS = {
 const MOODS = {
   zero: ["merciless", "withering", "snark-heavy", "gloriously petty"],
   fail: ["savage", "acidic", "dry", "arch"],
-  one: ["awe-struck", "mock-epic", "giddy", "theatrical"],
-  two: ["punchy", "effusive", "smug-on-your-behalf"],
+  one: ["genuinely complimentary", "awe-struck", "warm", "celebratory"],
+  two: ["complimentary", "effusive", "smug-on-your-behalf"],
   three: ["impressed", "warmly sardonic", "crisply approving"],
   four: ["backhanded", "guarded", "polite-but-judgy"],
   five: ["deadpan", "tut-forward", "tight-lipped approval"],
@@ -98,13 +98,22 @@ function personaFor(attempts, score) {
 
   if (n === 1 || n === 2) {
     return pickWeighted([
-      { weight: 4, list: PERSONAS.cheerful },
+      { weight: 6, list: PERSONAS.cheerful },
       { weight: 3, list: PERSONAS.posh },
+      { weight: 1, list: PERSONAS.highbrow },
+    ]);
+  }
+
+  if (n === 3) {
+    return pickWeighted([
+      { weight: 4, list: PERSONAS.posh },
+      { weight: 3, list: PERSONAS.cheerful },
       { weight: 2, list: PERSONAS.highbrow },
       { weight: 1, list: PERSONAS.niche },
     ]);
   }
 
+  // mid results 4–5
   return pickWeighted([
     { weight: 3, list: PERSONAS.posh },
     { weight: 3, list: PERSONAS.highbrow },
@@ -114,9 +123,15 @@ function personaFor(attempts, score) {
   ]);
 }
 
-
-function spice() {
-  const spices = [
+function spice(mode = 'default') {
+  const POSITIVE = [
+    "use one sly British idiom",
+    "include a faux-dramatic aside — in dashes",
+    "drop one mock-epic metaphor",
+    "include exactly one emoji",
+    "include exactly two emojis",
+  ];
+  const DEFAULT = [
     "use one sly British idiom",
     "include a faux-dramatic aside — in dashes",
     "drop one mock-epic metaphor",
@@ -127,38 +142,58 @@ function spice() {
     "include exactly two emojis",
     "no emoji — make it cutting",
   ];
-  return spices[Math.floor(Math.random() * spices.length)];
+  const pool = mode === 'positive' ? POSITIVE : DEFAULT;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 const randInt = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
 
 /**
  * Generate a varied UK-English one-liner about a Wordle result.
- * Adds a cheeky nod to a rival if provided.
+ * Compliments for 1–3; acerbic for 4–6/X. Rival mention softens on great solves.
  */
 async function generateReaction(score, attempts, player, streak = null, pronouns = null, rival = null) {
+  const n = attempts === 'X' ? 7 : parseInt(attempts, 10);
+  const isQuickWin = (n >= 1 && n <= 3) && score > 0;
+
   const persona = personaFor(attempts, score);
   const tone = moodFor(attempts, score);
-  const styleNote = spice();
+  const styleNote = spice(isQuickWin ? 'positive' : 'default');
 
   const streakNote = (score > 0 && streak) ? ` They are on a streak of ${streak} day(s).` : "";
   const pronounNote = pronouns ? ` When referring to ${player}, use "${pronouns.pronoun}" and "${pronouns.possessive}".` : "";
-  const rivalNote = rival ? ` If it fits, nudge about rival ${rival} in a single short clause.` : "";
+
+  // Rival rule: gentle congrats on 1–3; cheeky jab otherwise.
+  const rivalNote = rival
+    ? (isQuickWin
+        ? ` If it fits, add a light, friendly aside about being ahead of ${rival}; no digs.`
+        : ` If it fits, nudge about rival ${rival} in a short cheeky clause.`)
+    : "";
 
   const wordLimit = randInt(12, 26);
-  const emojiLimit = /emoji/.test(styleNote) ? (styleNote.includes('two') ? 2 : 1) : 0;
+  const emojiLimit = /emoji/.test(styleNote) ? (styleNote.includes('two') ? 2 : 1) : (isQuickWin ? 1 : 0);
+
+  // Tone policy: clear compliment for quick wins; acerbic for grinds/fails.
+  const policy = isQuickWin
+    ? `Be clearly complimentary and celebratory. Praise the *play* without undercutting it. Keep wit warm, not snarky.`
+    : `Acerbic is fine; roast the *play*, not the person. Keep it witty, not abusive.`;
+
+  const collapseRule = isQuickWin
+    ? ``
+    : `If attempts is 'X' or score is 0: assume a collapse — go harder, still witty.`;
 
   const system = [
     `You are ${persona}.`,
-    `Tone: one or two of ${tone.join(", ")}; clever, UK English, acerbic but not abusive.`,
+    `Tone: one or two of ${tone.join(", ")}; UK English.`,
+    policy,
     `Keep it under ${wordLimit} words.`,
     `At most ${emojiLimit} emoji.`,
-    `Roast the play, not the person. No slurs. Avoid overused lines.`,
+    `Avoid overused lines.`,
     `Vary rhythm (clauses, dashes, asides).`,
-    `If attempts is 'X' or score is 0: assume a collapse — go harder, still witty.`,
+    collapseRule,
     styleNote,
     pronounNote,
     rivalNote,
-  ].join(' ');
+  ].filter(Boolean).join(' ');
 
   const user = `Player ${player} completed today's Wordle in ${attempts} attempt(s) with a score of ${score}.${streakNote} Write a single one-liner reaction.`;
 
@@ -173,7 +208,7 @@ async function generateReaction(score, attempts, player, streak = null, pronouns
         model: process.env.OPENAI_REACTIONS_MODEL || "gpt-4o-mini",
         messages,
         max_tokens: 70,
-        temperature: 0.95,
+        temperature: isQuickWin ? 0.85 : 0.95, // slightly steadier on compliments
         top_p: 0.9,
         frequency_penalty: 0.35,
         presence_penalty: 0.6,
@@ -187,7 +222,11 @@ async function generateReaction(score, attempts, player, streak = null, pronouns
       pushRecent(text);
       return text;
     } catch (err) {
-      if (i === 2) return "That was… a choice. The dictionary would like a word back.";
+      if (i === 2) {
+        return isQuickWin
+          ? "That’s slick. Like threading a five-letter needle before breakfast. 🎯"
+          : "That was… a choice. The dictionary would like a word back.";
+      }
     }
   }
 }
