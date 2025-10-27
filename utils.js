@@ -1,20 +1,33 @@
-// utils/index.js
+// utils.js
 const { google } = require('googleapis');
 const fs = require('fs');
 
 const sheetId = process.env.GOOGLE_SHEET_ID;
 
-// credentials.json already written earlier in your setup
-const creds = JSON.parse(fs.readFileSync('./credentials.json', 'utf8'));
+// Load Google creds: prefer env (B64), fallback to local file if it exists
+let creds;
+if (process.env.GOOGLE_CREDENTIALS_B64) {
+  try {
+    const json = Buffer.from(process.env.GOOGLE_CREDENTIALS_B64, 'base64').toString('utf8');
+    creds = JSON.parse(json);
+  } catch (e) {
+    throw new Error('GOOGLE_CREDENTIALS_B64 is set but invalid JSON/base64.');
+  }
+} else if (fs.existsSync('./credentials.json')) {
+  creds = JSON.parse(fs.readFileSync('./credentials.json', 'utf8'));
+} else {
+  throw new Error('Missing Google credentials. Set GOOGLE_CREDENTIALS_B64 or provide ./credentials.json');
+}
+
 const auth = new google.auth.GoogleAuth({
   credentials: creds,
-  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 const sheets = google.sheets({ version: 'v4', auth });
 
 function getLocalDateString(date = new Date()) {
   const d = new Date(date);
-  d.setHours(0,0,0,0);
+  d.setHours(0, 0, 0, 0);
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -32,9 +45,7 @@ async function getAllScores() {
   return rows;
 }
 
-/**
- * Write exactly the numbers you're given — do not recompute streaks here.
- */
+// Write exactly the streaks you're given — don't recompute here.
 async function logScore(player, score, wordleNumber, attempts, currentStreak, maxStreak) {
   const today = getLocalDateString(new Date());
   await sheets.spreadsheets.values.append({
@@ -47,9 +58,6 @@ async function logScore(player, score, wordleNumber, attempts, currentStreak, ma
   });
 }
 
-/**
- * Optional helper used elsewhere in your bot.
- */
 async function isMonthlyChampion(player) {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId,
