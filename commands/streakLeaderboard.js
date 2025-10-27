@@ -2,7 +2,7 @@
 // Recomputes streaks from raw rows, robust date+name normalisation, HTML-safe output.
 // Shows an "active" current streak ONLY if last play was within graceDays (today or yesterday).
 
-const { calculateCurrentAndMaxStreak } = require('../utils/streakUtils');
+const { calculateCurrentAndMaxStreak } = require('../streakUtils');
 
 module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
   // --- Config ---
