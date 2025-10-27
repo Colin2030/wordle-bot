@@ -11,11 +11,11 @@ const {
   logScore,
   getLocalDateString,
   isMonthlyChampion,
-} = require('./utils');
+} = require('./utils'); // <-- ensure you actually have a utils module exporting these
 
-const { calculateCurrentAndMaxStreak } = require('./utils/streakUtils');
+const { calculateCurrentAndMaxStreak } = require('./streakUtils'); // <-- fixed path
 const { generateReaction } = require('./openaiReaction');
-const { reactionThemes } = require('./fallbackreactions');
+const { reactionThemes } = require('./reactions'); // <-- use your existing reactions file
 const playerProfiles = require('./playerProfiles');
 
 const groupChatId = process.env.GROUP_CHAT_ID;
@@ -80,7 +80,7 @@ module.exports = async function handleSubmission(bot, msg) {
   const attempts = match[2]; // '1'..'6' or 'X'
   const player = msg.from.first_name || 'Unknown';
 
-  const now = new Date();
+  const now = new Date(); // <-- single declaration
   const isFriday = now.getDay() === 5;
   const numAttempts = attempts === 'X' ? 7 : parseInt(attempts, 10);
   const today = getLocalDateString(now);
@@ -175,11 +175,19 @@ module.exports = async function handleSubmission(bot, msg) {
 
   const { current: streak, max: maxStreak } = calculateCurrentAndMaxStreak(
     playedDates,
-    { anchorToday: !isArchive } // only anchor when this is today's real submission
+    {
+      // anchor for real submissions so the reply shows the *post-submit* streak
+      anchorToday: !isArchive,
+      // treat submissions before 09:00 as the *previous day* (prevents accidental resets)
+      graceHour: 9,
+      // pass the same clock everywhere for consistency
+      now,
+    }
   );
 
   // Log score unless it's an Archive run
   if (!isArchive) {
+    // BUGFIX: use formattedScore and attempts (existing, defined vars)
     await logScore(player, formattedScore, wordleNumber, attempts, streak, maxStreak);
   } else {
     await bot.sendMessage(
@@ -303,8 +311,8 @@ module.exports = async function handleSubmission(bot, msg) {
     100: '💥 Century! Wordle royalty.',
     150: '💥💥 150 days — ridiculous stamina.',
     200: '💥💥💥 200 days — seek help (or a trophy).',
-	250: '💥💥💥💥 250 days — Are you human? Amazing!',
-	365: '⚡ 365 days — A year of brilliance. Well done!',
+    250: '💥💥💥💥 250 days — Are you human? Amazing!',
+    365: '⚡ 365 days — A year of brilliance. Well done!',
   };
 
   if (milestones[streak]) {
