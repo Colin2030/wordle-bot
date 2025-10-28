@@ -46,14 +46,15 @@ async function getAllScores() {
 }
 
 // Write exactly the streaks you're given — don't recompute here.
-async function logScore(player, score, wordleNumber, attempts, currentStreak, maxStreak) {
-  const today = getLocalDateString(new Date());
+// Accepts an optional dateYMD so we can write the effective day (pre-09:00 fix).
+async function logScore(player, score, wordleNumber, attempts, currentStreak, maxStreak, dateYMD) {
+  const day = dateYMD || getLocalDateString(new Date());
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
     range: 'Sheet1',
     valueInputOption: 'USER_ENTERED',
     resource: {
-      values: [[today, player, score, wordleNumber, attempts, currentStreak, maxStreak]],
+      values: [[day, player, score, wordleNumber, attempts, currentStreak, maxStreak]],
     },
   });
 }

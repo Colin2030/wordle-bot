@@ -1,41 +1,44 @@
-// handleSubmission.js — rivals + tie-break + robust streaks (anchored to today on submit)
-// --------------------------------------------------------------------------------------
-// Notes:
-// - Rival = player one place above you on TODAY's leaderboard.
-// - Tie-break: if totals are tied, the rival is the player whose latest post today is most recent.
-// - Reaction receives `rival` for a cheeky nudge.
-// - Streak calc here uses { anchorToday: true } so it matches the "post-submit" streak in the reply.
+// handleSubmission.js — rivals + tie-break + robust streaks (effective-day everywhere)
+// ------------------------------------------------------------------------------------
+// Key changes:
+// - Uses the *effective UK day* (getEffectiveToday(9, now)) for ALL date-related logic.
+// - Prevents pre-09:00 submissions from showing streak=0 by aligning push/anchor/log dates.
+// - Passes the effective date to logScore so the sheet matches the streak math.
+// - Friday double is also based on the effective UK day (not raw calendar time).
 
 const {
   getAllScores,
   logScore,
   getLocalDateString,
   isMonthlyChampion,
-} = require('./utils'); // <-- ensure you actually have a utils module exporting these
+} = require('./utils');
 
-const { calculateCurrentAndMaxStreak } = require('./streakUtils'); // <-- fixed path
+const {
+  calculateCurrentAndMaxStreak,
+  getEffectiveToday,
+} = require('./streakUtils');
+
 const { generateReaction } = require('./openaiReaction');
-const { reactionThemes } = require('./reactions'); // <-- use your existing reactions file
+const { reactionThemes } = require('./reactions');
 const playerProfiles = require('./playerProfiles');
 
 const groupChatId = process.env.GROUP_CHAT_ID;
 
-console.log('🧪 Scoring logic: Wordle Bot v2.0 with decimal scoring is active');
+console.log('🧪 Scoring logic: Wordle Bot v2.1 (effective-day + grace-hour aligned)');
 
 /* ----------------- Rival helpers ----------------- */
 
 /**
- * Build today's leaderboard totals and remember "latest index" per player for tie-breaks.
- * We also support injecting the current player's just-computed score so the board reflects
- * their new total immediately (without re-reading the sheet).
+ * Build today's leaderboard totals (for the provided "today" key) and remember
+ * "latest index" per player for tie-breaks. Supports injecting the current submission.
  */
-function buildTodayLeaderboard(allScores, today, injectPlayer = null, injectScore = 0) {
+function buildTodayLeaderboard(allScores, todayKey, injectPlayer = null, injectScore = 0) {
   const totals = new Map();  // player -> number
-  const lastIdx = new Map(); // player -> last seen row index for today
+  const lastIdx = new Map(); // player -> last seen row index for todayKey
 
   for (let i = 0; i < allScores.length; i++) {
     const [date, p, s] = allScores[i];
-    if (date !== today) continue;
+    if (date !== todayKey) continue;
     const val = parseFloat(s);
     if (!Number.isFinite(val)) continue;
     totals.set(p, (totals.get(p) || 0) + val);
@@ -80,21 +83,26 @@ module.exports = async function handleSubmission(bot, msg) {
   const attempts = match[2]; // '1'..'6' or 'X'
   const player = msg.from.first_name || 'Unknown';
 
-  const now = new Date(); // <-- single declaration
-  const isFriday = now.getDay() === 5;
+  const now = new Date();
+  // Effective "today" in UK with grace window (09:00)
+  const effectiveDay = getEffectiveToday(9, now);
+  const effectiveDate = getLocalDateString(effectiveDay);
+
+  // Friday double based on effective-day (so pre-09:00 on Saturday still counts as Friday)
+  const isFriday = effectiveDay.getDay() === 5;
+
   const numAttempts = attempts === 'X' ? 7 : parseInt(attempts, 10);
-  const today = getLocalDateString(now);
   const isArchive = /archive/i.test(cleanText);
 
   const allScores = await getAllScores();
 
-  // Prevent duplicate submission for today (non-archive)
+  // Prevent duplicate submission for the effective day (non-archive)
   if (!isArchive) {
-    const alreadySubmitted = allScores.some(([date, p]) => date === today && p === player);
+    const alreadySubmitted = allScores.some(([date, p]) => date === effectiveDate && p === player);
     if (alreadySubmitted) {
       await bot.sendMessage(
         chatId,
-        `🛑 ${player}, you've already submitted your Wordle for today. No cheating! 😜`
+        `🛑 ${player}, you've already submitted your Wordle for ${effectiveDate}. No cheating! 😜`
       );
       return;
     }
@@ -163,32 +171,37 @@ module.exports = async function handleSubmission(bot, msg) {
 
   const formattedScore = Number(finalScore.toFixed(1));
 
-  /* -------- Streaks (anchor to today for submission reply) -------- */
-  // Build playedDates from sheet (attempts !== 'X'); push today if this isn’t an Archive post.
+  /* -------- Streaks (anchor to effective day for submission) -------- */
+  // Build playedDates from sheet (attempts !== 'X'); push effectiveDate if this isn’t an Archive post.
   const playedDates = allScores
     .filter(([date, p, , , a]) => p === player && a !== 'X')
     .map(([date]) => date);
 
   if (!isArchive) {
-    playedDates.push(today); // ensure today's play counts
+    playedDates.push(effectiveDate); // ensure *effective-day* counts
   }
 
-  const { current: streak, max: maxStreak } = calculateCurrentAndMaxStreak(
+  // Carry forward prior max so trimming never reduces historical max
+  const lastRowForPlayer = [...allScores].reverse().find(([ , p]) => p === player);
+  const priorMax = parseInt(lastRowForPlayer?.[6] || '0', 10);
+
+  const { current: streakNow, max: rawMax } = calculateCurrentAndMaxStreak(
     playedDates,
     {
-      // anchor for real submissions so the reply shows the *post-submit* streak
-      anchorToday: !isArchive,
-      // treat submissions before 09:00 as the *previous day* (prevents accidental resets)
+      anchorToday: !isArchive, // anchor to the effective day for real submissions
       graceHour: 9,
-      // pass the same clock everywhere for consistency
       now,
     }
   );
 
-  // Log score unless it's an Archive run
+  const streak = streakNow;
+  const maxStreak = Math.max(rawMax, priorMax);
+
+  // Log score unless it's an Archive run — write the *effective* date to the sheet.
   if (!isArchive) {
-    // BUGFIX: use formattedScore and attempts (existing, defined vars)
-    await logScore(player, formattedScore, wordleNumber, attempts, streak, maxStreak);
+    // NOTE: logScore now accepts an optional date param; if your utils.js hasn't been updated,
+    // this still works (extra args are ignored), but please update utils.js as advised.
+    await logScore(player, formattedScore, wordleNumber, attempts, streak, maxStreak, effectiveDate);
   } else {
     await bot.sendMessage(
       chatId,
@@ -197,11 +210,11 @@ module.exports = async function handleSubmission(bot, msg) {
     );
   }
 
-  /* -------- Rival (today) with tie-break by most-recent post) -------- */
-  // Build a "virtual" today board that includes THIS submission immediately.
+  /* -------- Rival (effective-day) with tie-break by most-recent post -------- */
+  // Build a "virtual" effective-day board that includes THIS submission immediately.
   const { sorted: todaySorted } = buildTodayLeaderboard(
     allScores,
-    today,
+    effectiveDate,
     player,
     formattedScore
   );
@@ -238,9 +251,10 @@ module.exports = async function handleSubmission(bot, msg) {
   /* -------- Badges, crowns, medals -------- */
   const isChampion = await isMonthlyChampion(player);
 
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  const yestDate = getLocalDateString(yesterday);
+  // "Yesterday" relative to the effective day
+  const effYesterday = new Date(effectiveDay);
+  effYesterday.setDate(effectiveDay.getDate() - 1);
+  const yestDate = getLocalDateString(effYesterday);
 
   // Yesterday medals (🥇🥈🥉)
   const yestTotals = allScores
@@ -256,9 +270,9 @@ module.exports = async function handleSubmission(bot, msg) {
   else if (player === second) dailyMedal = ' 🥈';
   else if (player === third) dailyMedal = ' 🥉';
 
-  // Last week's crown (👑)
-  const lastMonday = new Date(now);
-  lastMonday.setDate(now.getDate() - ((now.getDay() + 6) % 7) - 7);
+  // Last week's crown (👑) computed relative to the effective day
+  const lastMonday = new Date(effectiveDay);
+  lastMonday.setDate(effectiveDay.getDate() - ((effectiveDay.getDay() + 6) % 7) - 7);
   lastMonday.setHours(0, 0, 0, 0);
   const lastSunday = new Date(lastMonday);
   lastSunday.setDate(lastSunday.getDate() + 6);
@@ -277,7 +291,7 @@ module.exports = async function handleSubmission(bot, msg) {
   const weeklyCrown = topWeekly === player ? ' 👑' : '';
   const trophy = isChampion ? ' 🏆' : '';
 
-  // Streak flair (based on the anchored streak above)
+  // Streak flair (based on the streak computed above)
   let streakEmoji = '';
   if (streak === 1) streakEmoji = ' 💩';
   else if (streak >= 365) streakEmoji = ' ⚡';
