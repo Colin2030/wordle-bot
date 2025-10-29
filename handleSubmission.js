@@ -1,10 +1,10 @@
-// handleSubmission.js — rivals + tie-break + robust streaks (effective-day everywhere)
-// ------------------------------------------------------------------------------------
-// Key changes:
-// - Uses the *effective UK day* (getEffectiveToday(9, now)) for ALL date-related logic.
-// - Prevents pre-09:00 submissions from showing streak=0 by aligning push/anchor/log dates.
-// - Passes the effective date to logScore so the sheet matches the streak math.
-// - Friday double is also based on the effective UK day (not raw calendar time).
+// handleSubmission.js — rivals + tie-break + robust streaks (message-time aligned)
+// ---------------------------------------------------------------------------------
+// Changes:
+// - Use Telegram's msg.date (UTC, seconds) as the source of time.
+// - Grace hour is configurable via GRACE_HOUR (defaults to 3). Set to 0 to disable.
+// - Use the effective day (getEffectiveToday(GRACE_HOUR, msgTime)) for *everything*:
+//   duplicate check, streak push/anchor, logging, yesterday medals, weekly crown.
 
 const {
   getAllScores,
@@ -24,17 +24,16 @@ const playerProfiles = require('./playerProfiles');
 
 const groupChatId = process.env.GROUP_CHAT_ID;
 
-console.log('🧪 Scoring logic: Wordle Bot v2.1 (effective-day + grace-hour aligned)');
+// Configurable grace (hours from local midnight). Example: GRACE_HOUR=0 to disable.
+const GRACE_HOUR = Number(process.env.GRACE_HOUR || 3);
+
+console.log('🧪 Scoring logic: Wordle Bot v2.2 (message-time + configurable grace)');
 
 /* ----------------- Rival helpers ----------------- */
 
-/**
- * Build today's leaderboard totals (for the provided "today" key) and remember
- * "latest index" per player for tie-breaks. Supports injecting the current submission.
- */
 function buildTodayLeaderboard(allScores, todayKey, injectPlayer = null, injectScore = 0) {
-  const totals = new Map();  // player -> number
-  const lastIdx = new Map(); // player -> last seen row index for todayKey
+  const totals = new Map();
+  const lastIdx = new Map();
 
   for (let i = 0; i < allScores.length; i++) {
     const [date, p, s] = allScores[i];
@@ -42,16 +41,14 @@ function buildTodayLeaderboard(allScores, todayKey, injectPlayer = null, injectS
     const val = parseFloat(s);
     if (!Number.isFinite(val)) continue;
     totals.set(p, (totals.get(p) || 0) + val);
-    lastIdx.set(p, i); // later i means more recent post
+    lastIdx.set(p, i);
   }
 
   if (injectPlayer) {
     totals.set(injectPlayer, (totals.get(injectPlayer) || 0) + Number(injectScore));
-    // Pretend this row is the newest possible for today
     lastIdx.set(injectPlayer, Number.MAX_SAFE_INTEGER);
   }
 
-  // Sort: total desc, then lastIdx desc (most recent first)
   const sorted = [...totals.entries()].sort((a, b) => {
     if (b[1] !== a[1]) return b[1] - a[1];
     return (lastIdx.get(b[0]) || 0) - (lastIdx.get(a[0]) || 0);
@@ -60,10 +57,9 @@ function buildTodayLeaderboard(allScores, todayKey, injectPlayer = null, injectS
   return { sorted, totals, lastIdx };
 }
 
-/** Return the rival name given a pre-sorted board. */
 function rivalForPlayer(sortedBoard, player) {
   const idx = sortedBoard.findIndex(([p]) => p === player);
-  if (idx <= 0) return null; // top or not found
+  if (idx <= 0) return null;
   return sortedBoard[idx - 1][0];
 }
 
@@ -83,12 +79,14 @@ module.exports = async function handleSubmission(bot, msg) {
   const attempts = match[2]; // '1'..'6' or 'X'
   const player = msg.from.first_name || 'Unknown';
 
-  const now = new Date();
-  // Effective "today" in UK with grace window (09:00)
-  const effectiveDay = getEffectiveToday(9, now);
+  // 🔒 Use Telegram's message timestamp (UTC seconds → Date) instead of server clock
+  const msgTime = new Date(msg.date * 1000);
+
+  // Effective "today" using configurable grace hour
+  const effectiveDay = getEffectiveToday(GRACE_HOUR, msgTime);
   const effectiveDate = getLocalDateString(effectiveDay);
 
-  // Friday double based on effective-day (so pre-09:00 on Saturday still counts as Friday)
+  // Friday double based on *effective* day
   const isFriday = effectiveDay.getDay() === 5;
 
   const numAttempts = attempts === 'X' ? 7 : parseInt(attempts, 10);
@@ -124,7 +122,6 @@ module.exports = async function handleSubmission(bot, msg) {
     const baseScoreByAttempt = { 1: 60, 2: 50, 3: 40, 4: 30, 5: 20, 6: 10, 7: 0 };
     finalScore += baseScoreByAttempt[numAttempts] || 0;
 
-    // Earlier rows are worth a bit more; later rows taper
     const lineValues = [
       { green: 2.5, yellow: 1.2, yellowToGreen: 1.5, bonus: 10, fullGrayPenalty: -1 },
       { green: 2.2, yellow: 1.0, yellowToGreen: 1.2, bonus: 8,  fullGrayPenalty: -1 },
@@ -134,8 +131,8 @@ module.exports = async function handleSubmission(bot, msg) {
       { green: 1.0, yellow: 0.2, yellowToGreen: 0.3, bonus: 0,  fullGrayPenalty: 0   },
     ];
 
-    const seenYellows = new Set(); // positions that turned yellow once
-    const seenGreens = new Set();  // positions that finally went green
+    const seenYellows = new Set();
+    const seenGreens = new Set();
 
     gridLines.forEach((line, i) => {
       const rule = lineValues[i] || lineValues[lineValues.length - 1];
@@ -143,25 +140,24 @@ module.exports = async function handleSubmission(bot, msg) {
       let fullGray = true;
 
       tiles.forEach((tile, idx) => {
-        const key = `${idx}`; // by column index
+        const key = `${idx}`;
 
         if (tile === '🟩') {
           fullGray = false;
           if (!seenGreens.has(key)) {
             finalScore += rule.green;
-            if (seenYellows.has(key)) finalScore += rule.yellowToGreen; // yellow → green conversion
+            if (seenYellows.has(key)) finalScore += rule.yellowToGreen;
             seenGreens.add(key);
           }
         } else if (tile === '🟨') {
           fullGray = false;
           if (!seenYellows.has(key) && !seenGreens.has(key)) {
-            finalScore += rule.yellow; // first yellow at this position
+            finalScore += rule.yellow;
             seenYellows.add(key);
           }
         }
       });
 
-      // Row is fully green and not the final row → bonus
       if (tiles.every((t) => t === '🟩') && i < 5) finalScore += rule.bonus;
       if (fullGray) finalScore += rule.fullGrayPenalty;
     });
@@ -171,36 +167,29 @@ module.exports = async function handleSubmission(bot, msg) {
 
   const formattedScore = Number(finalScore.toFixed(1));
 
-  /* -------- Streaks (anchor to effective day for submission) -------- */
-  // Build playedDates from sheet (attempts !== 'X'); push effectiveDate if this isn’t an Archive post.
+  /* -------- Streaks (anchor to effective day) -------- */
   const playedDates = allScores
     .filter(([date, p, , , a]) => p === player && a !== 'X')
     .map(([date]) => date);
 
   if (!isArchive) {
-    playedDates.push(effectiveDate); // ensure *effective-day* counts
+    playedDates.push(effectiveDate);
   }
 
-  // Carry forward prior max so trimming never reduces historical max
-  const lastRowForPlayer = [...allScores].reverse().find(([ , p]) => p === player);
+  const lastRowForPlayer = [...allScores].reverse().find(([, p]) => p === player);
   const priorMax = parseInt(lastRowForPlayer?.[6] || '0', 10);
 
-  const { current: streakNow, max: rawMax } = calculateCurrentAndMaxStreak(
-    playedDates,
-    {
-      anchorToday: !isArchive, // anchor to the effective day for real submissions
-      graceHour: 9,
-      now,
-    }
-  );
+  const { current: streakNow, max: rawMax } = calculateCurrentAndMaxStreak(playedDates, {
+    anchorToday: !isArchive,
+    graceHour: GRACE_HOUR,
+    now: msgTime, // <- use Telegram message time for consistency
+  });
 
   const streak = streakNow;
   const maxStreak = Math.max(rawMax, priorMax);
 
-  // Log score unless it's an Archive run — write the *effective* date to the sheet.
+  // Log score unless it's an Archive run — write the *effective* date.
   if (!isArchive) {
-    // NOTE: logScore now accepts an optional date param; if your utils.js hasn't been updated,
-    // this still works (extra args are ignored), but please update utils.js as advised.
     await logScore(player, formattedScore, wordleNumber, attempts, streak, maxStreak, effectiveDate);
   } else {
     await bot.sendMessage(
@@ -211,7 +200,6 @@ module.exports = async function handleSubmission(bot, msg) {
   }
 
   /* -------- Rival (effective-day) with tie-break by most-recent post -------- */
-  // Build a "virtual" effective-day board that includes THIS submission immediately.
   const { sorted: todaySorted } = buildTodayLeaderboard(
     allScores,
     effectiveDate,
@@ -233,7 +221,6 @@ module.exports = async function handleSubmission(bot, msg) {
       pronouns,
       rival
     );
-
     if (aiReaction) {
       reaction = aiReaction;
     } else {
@@ -248,15 +235,13 @@ module.exports = async function handleSubmission(bot, msg) {
     reaction = pool.length ? pool[Math.floor(Math.random() * pool.length)] : 'Nice try!';
   }
 
-  /* -------- Badges, crowns, medals -------- */
+  /* -------- Badges, crowns, medals (all relative to effectiveDay) -------- */
   const isChampion = await isMonthlyChampion(player);
 
-  // "Yesterday" relative to the effective day
   const effYesterday = new Date(effectiveDay);
   effYesterday.setDate(effectiveDay.getDate() - 1);
   const yestDate = getLocalDateString(effYesterday);
 
-  // Yesterday medals (🥇🥈🥉)
   const yestTotals = allScores
     .filter(([date]) => date === yestDate)
     .reduce((acc, [_, p, s]) => {
@@ -270,7 +255,6 @@ module.exports = async function handleSubmission(bot, msg) {
   else if (player === second) dailyMedal = ' 🥈';
   else if (player === third) dailyMedal = ' 🥉';
 
-  // Last week's crown (👑) computed relative to the effective day
   const lastMonday = new Date(effectiveDay);
   lastMonday.setDate(effectiveDay.getDate() - ((effectiveDay.getDay() + 6) % 7) - 7);
   lastMonday.setHours(0, 0, 0, 0);
@@ -291,7 +275,6 @@ module.exports = async function handleSubmission(bot, msg) {
   const weeklyCrown = topWeekly === player ? ' 👑' : '';
   const trophy = isChampion ? ' 🏆' : '';
 
-  // Streak flair (based on the streak computed above)
   let streakEmoji = '';
   if (streak === 1) streakEmoji = ' 💩';
   else if (streak >= 365) streakEmoji = ' ⚡';
@@ -308,14 +291,12 @@ module.exports = async function handleSubmission(bot, msg) {
   const streakText = ` (${streak}${streakEmoji})`;
   if (!reaction) reaction = 'Nice Wordle!';
 
-  // Final announce line
   await bot.sendMessage(
     chatId,
     `${player}${streakText}${trophy}${weeklyCrown}${dailyMedal} scored ${formattedScore} points! ${reaction}`,
     { parse_mode: 'Markdown' }
   );
 
-  /* -------- Optional: Milestone streak pings (kept compact) -------- */
   const milestones = {
     10: "🔥 You've hit a 10-day streak! Double digits!",
     20: '🔥🔥 Two blazing weeks — nice!',
