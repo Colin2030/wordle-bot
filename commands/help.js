@@ -11,6 +11,7 @@ module.exports = function help(bot, _, groupChatId) {
       + `/monthlyleaderboard - Monthly legends 🏆\n`
       + `/top10 - All-time top scorers 🥇\n`
       + `/lastweekchamp - Last week's champion 👑\n`
+	  + `/lastmonthleaderboard - How it went down last month 👑\n`
       + `/myrank - See your stats 🏅\n`
       + `/streakleaderboard - See the top current streaks 🔥\n`
       + `/streakgraph - Graph your 2-week streak 📊\n`
