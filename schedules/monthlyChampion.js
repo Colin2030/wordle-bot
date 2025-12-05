@@ -19,12 +19,14 @@ module.exports = function monthlyChampion(bot, getAllScores, groupChatId) {
   } else if (fs.existsSync('./credentials.json')) {
     creds = JSON.parse(fs.readFileSync('./credentials.json', 'utf8'));
   } else {
-    throw new Error('Missing Google credentials: set GOOGLE_CREDENTIALS_B64 or include ./credentials.json');
+    throw new Error(
+      'Missing Google credentials: set GOOGLE_CREDENTIALS_B64 or include ./credentials.json'
+    );
   }
 
   const auth = new google.auth.GoogleAuth({
     credentials: creds,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets']
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
   const sheets = google.sheets({ version: 'v4', auth });
 
@@ -37,7 +39,10 @@ module.exports = function monthlyChampion(bot, getAllScores, groupChatId) {
     const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const leaderboard = {};
+
     for (const [date, player, score] of scores) {
+      if (!date || !player || isNaN(score)) continue;
+
       const entryDate = new Date(date);
       if (entryDate >= lastMonth && entryDate < thisMonth) {
         leaderboard[player] = (leaderboard[player] || 0) + parseFloat(score);
@@ -55,10 +60,27 @@ module.exports = function monthlyChampion(bot, getAllScores, groupChatId) {
     const sorted = Object.entries(leaderboard).sort((a, b) => b[1] - a[1]);
     const [winner, total] = sorted[0];
 
+    // Build Top 10 table
+    const topTen = sorted.slice(0, 10);
+    let topTenText = '';
+
+    topTen.forEach(([player, totalScore], index) => {
+      const position = index + 1;
+      const medal =
+        position === 1 ? '🏆' :
+        position === 2 ? '🥈' :
+        position === 3 ? '🥉' : '•';
+
+      topTenText += `${position}. ${medal} ${player}: ${totalScore.toFixed(1)} pts\n`;
+    });
+
     const msg =
       `🎉 *Monthly Champion Announcement!* 🎉\n\n` +
       `🏆 ${winner} is the Wordle Legend for last month with *${total.toFixed(1)} points*! 👑🎁\n\n` +
-      `Congratulations!`;
+      `📊 *Top 10 from last month:*\n` +
+      `${topTenText}\n` +
+      `Congratulations everyone!`;
+
     await bot.sendMessage(groupChatId, msg, { parse_mode: 'Markdown' });
 
     const monthString = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
@@ -66,7 +88,7 @@ module.exports = function monthlyChampion(bot, getAllScores, groupChatId) {
       spreadsheetId: sheetId,
       range: 'MonthlyWinners!A:B',
       valueInputOption: 'USER_ENTERED',
-      resource: { values: [[monthString, winner]] }
+      resource: { values: [[monthString, winner]] },
     });
   });
 };
