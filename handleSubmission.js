@@ -29,6 +29,39 @@ const GRACE_HOUR = Number(process.env.GRACE_HOUR || 3);
 
 console.log('🧪 Scoring logic: Wordle Bot v2.2 (message-time + configurable grace)');
 
+// Monday 00:00:00 of this week
+function startOfThisWeek(d = new Date()) {
+  const x = new Date(d);
+  const day = x.getDay(); // 0=Sun..6=Sat
+  const diffToMonday = (day + 6) % 7; // Mon=0
+  x.setDate(x.getDate() - diffToMonday);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function endOfThisWeek(d = new Date()) {
+  const s = startOfThisWeek(d);
+  const e = new Date(s);
+  e.setDate(s.getDate() + 6);
+  e.setHours(23, 59, 59, 999);
+  return e;
+}
+
+// Build weekly totals from allScores within [start,end]
+function buildWeeklyLeaderboard(allScores, start, end) {
+  const totals = new Map(); // player -> total points
+  for (const row of allScores) {
+    const [dateIso, p, s] = row;
+    const dt = new Date(dateIso);
+    if (!(dt >= start && dt <= end)) continue;
+    const val = parseFloat(s);
+    if (!Number.isFinite(val)) continue;
+    totals.set(p, (totals.get(p) || 0) + val);
+  }
+  const sorted = [...totals.entries()].sort((a, b) => b[1] - a[1]); // [[player,total],...]
+  return { sorted, totals };
+}
+
 /* ----------------- Rival helpers ----------------- */
 
 function buildTodayLeaderboard(allScores, todayKey, injectPlayer = null, injectScore = 0) {
@@ -199,40 +232,64 @@ module.exports = async function handleSubmission(bot, msg) {
     );
   }
 
-  /* -------- Rival (effective-day) with tie-break by most-recent post -------- */
-  const { sorted: todaySorted } = buildTodayLeaderboard(
-    allScores,
-    effectiveDate,
+ // --- Rival (today & weekly rank aware) ---
+const { sorted: todaySorted, totals: todayTotals } =
+  buildTodayLeaderboard(allScores, today, player, formattedScore);
+
+// default: rival is the one just above you today
+const idx = todaySorted.findIndex(([p]) => p === player);
+let rivalInfo = null;
+
+if (idx > 0) {
+  const [rivalName, rivalTodayTotal] = todaySorted[idx - 1];
+  const meTodayTotal = todayTotals.get(player) || 0;
+  const delta = meTodayTotal - rivalTodayTotal; // +ve => you're ahead
+  const relation = Math.abs(delta) < 0.5 ? 'tied' : (delta > 0 ? 'ahead' : 'behind');
+
+  // Weekly ranks (Mon..Sun including today)
+  const weekStart = startOfThisWeek(new Date());
+  const weekEnd = endOfThisWeek(new Date());
+  const { sorted: weekSorted, totals: weekTotals } = buildWeeklyLeaderboard(allScores, weekStart, weekEnd);
+
+  const youWeeklyTotal = (weekTotals.get(player) || 0) + (relation !== 'behind' ? 0 : 0); // totals already include today's via sheet; we don't double-add
+  const rivalWeeklyTotal = weekTotals.get(rivalName) || 0;
+
+  const youRank = weekSorted.findIndex(([p]) => p === player) + 1 || null;
+  const rivalRank = weekSorted.findIndex(([p]) => p === rivalName) + 1 || null;
+  const fieldSize = weekSorted.length;
+
+  rivalInfo = {
+    name: rivalName,
+    relation,
+    delta,
+    rank: (youRank && rivalRank)
+      ? { you: youRank, rival: rivalRank, size: fieldSize, period: 'weekly' }
+      : undefined,
+  };
+}
+
+// --- Reaction (pass structured rival) ---
+const pronouns = playerProfiles[player] || null;
+let reaction;
+try {
+  const aiReaction = await generateReaction(
+    formattedScore,
+    attempts,
     player,
-    formattedScore
+    streak,
+    pronouns,
+    rivalInfo // <— now an object with relation + rank
   );
-  const rival = rivalForPlayer(todaySorted, player);
+  reaction = aiReaction || null;
+} catch (e) {
+  console.error('Failed to generate AI reaction:', e);
+}
+if (!reaction) {
+  const attemptKey = attempts === 'X' ? 'X' : parseInt(attempts, 10);
+  const pool = reactionThemes[attemptKey] || [];
+  reaction = pool.length ? pool[Math.floor(Math.random() * pool.length)] : 'Nice effort!';
+}
 
-  /* -------- Reaction -------- */
-  const pronouns = playerProfiles[player] || null;
-  let reaction;
-
-  try {
-    const aiReaction = await generateReaction(
-      formattedScore,
-      attempts,
-      player,
-      streak,
-      pronouns,
-      rival
-    );
-    if (aiReaction) {
-      reaction = aiReaction;
-    } else {
-      const attemptKey = attempts === 'X' ? 'X' : parseInt(attempts, 10);
-      const pool = reactionThemes[attemptKey] || [];
-      reaction = pool.length ? pool[Math.floor(Math.random() * pool.length)] : 'Nice effort!';
-    }
-  } catch (e) {
-    console.error('Failed to generate AI reaction:', e);
-    const attemptKey = attempts === 'X' ? 'X' : parseInt(attempts, 10);
-    const pool = reactionThemes[attemptKey] || [];
-    reaction = pool.length ? pool[Math.floor(Math.random() * pool.length)] : 'Nice try!';
   }
 
   /* -------- Badges, crowns, medals (all relative to effectiveDay) -------- */
