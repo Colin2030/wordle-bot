@@ -7,6 +7,10 @@
     "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "scripts": {
+  "prestart": "node --check openaiReaction.js && node --check handleSubmission.js && node --check commands/debugStreak.js && node --check commands/recalcStreaks.js && node --check commands/streakLeaderboard.js && node --check schedules/streakSaturdayCron.js",
+  "start": "node index.js"
+}
   "keywords": [],
   "author": "",
   "license": "ISC",
