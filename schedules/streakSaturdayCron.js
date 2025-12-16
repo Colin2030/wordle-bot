@@ -7,7 +7,7 @@ const { calculateCurrentAndMaxStreak } = require('../utils/streakUtils');
 const { getLocalDateString } = require('../utils');
 
 module.exports = function streakSaturdayCron(bot, getAllScores, groupChatId) {
-  const graceDays = 1; // active if last play was today or yesterday
+  const graceDays = Number(process.env.STREAK_RECENCY_DAYS ?? 1); // active if last play was today or yesterday
 
   // --- Helpers ---
   const escapeHtml = (t = '') =>

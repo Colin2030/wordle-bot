@@ -7,7 +7,7 @@ const { getLocalDateString } = require('../utils'); // ← UK-aligned "today"
 
 module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
   // --- Config ---
-  const graceDays = 1; // treat streak as active if last play was within 1 day
+  const graceDays = Number(process.env.STREAK_RECENCY_DAYS ?? 1); // treat streak as active if last play was within 1 day
 
   // --- Helpers ---
   const escapeHtml = (text = '') =>
