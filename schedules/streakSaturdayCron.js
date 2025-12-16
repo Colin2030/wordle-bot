@@ -4,6 +4,7 @@
 
 const cron = require('node-cron');
 const { calculateCurrentAndMaxStreak } = require('../utils/streakUtils');
+const { getLocalDateString } = require('../utils');
 
 module.exports = function streakSaturdayCron(bot, getAllScores, groupChatId) {
   const graceDays = 1; // active if last play was today or yesterday
@@ -19,8 +20,8 @@ module.exports = function streakSaturdayCron(bot, getAllScores, groupChatId) {
   function canonicalName(raw = '') {
     const display = String(raw).normalize('NFKC').replace(/\s+/g, ' ').trim();
     const key = display
-      .replace(/\p{Extended_Pictographic}/gu, '') // strip emojis for key
-      .replace(/[^\p{L}\p{N}\s]/gu, '')           // strip punctuation/symbols for key
+      .replace(/\p{Extended_Pictographic}/gu, '')
+      .replace(/[^\p{L}\p{N}\s]/gu, '')
       .replace(/\s+/g, ' ')
       .trim()
       .toLowerCase();
@@ -30,7 +31,7 @@ module.exports = function streakSaturdayCron(bot, getAllScores, groupChatId) {
   function isoDate(raw) {
     if (raw == null) return null;
     const s = String(raw).trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // already ISO
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
 
     // Google Sheets serial (days since 1899-12-30)
     const n = Number(s);
@@ -43,7 +44,6 @@ module.exports = function streakSaturdayCron(bot, getAllScores, groupChatId) {
       return `${y}-${m}-${day}`;
     }
 
-    // Fallback parse
     const d = new Date(s);
     if (isNaN(d)) return null;
     const y = d.getFullYear();
@@ -52,18 +52,15 @@ module.exports = function streakSaturdayCron(bot, getAllScores, groupChatId) {
     return `${y}-${m}-${day}`;
   }
 
-  function todayISO() {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+  // timezone-safe day math in UTC
+  function isoToEpochDays(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+    if (!m) return NaN;
+    const y = Number(m[1]), mo = Number(m[2]) - 1, d = Number(m[3]);
+    return Math.floor(Date.UTC(y, mo, d) / 86400000);
   }
-
   function daysBetweenISO(aIso, bIso) {
-    const a = new Date(aIso); a.setHours(0,0,0,0);
-    const b = new Date(bIso); b.setHours(0,0,0,0);
-    return Math.round((b - a) / 86400000);
+    return isoToEpochDays(bIso) - isoToEpochDays(aIso);
   }
 
   // Every Saturday at 10:00 (server time)
@@ -92,7 +89,6 @@ module.exports = function streakSaturdayCron(bot, getAllScores, groupChatId) {
         const attempts = String(attemptsRaw ?? '').trim().toUpperCase();
         const score = Number(scoreRaw);
 
-        // Treat as "played" only for completed games (or clearly positive scored legacy rows)
         const played = attempts !== 'X' || (Number.isFinite(score) && score > 0);
         if (!played) continue;
 
@@ -106,20 +102,18 @@ module.exports = function streakSaturdayCron(bot, getAllScores, groupChatId) {
         return;
       }
 
-      const today = todayISO();
+      const today = getLocalDateString(new Date()); // UK-aligned "today"
 
-      // Recompute streaks and apply recency gate for "active current"
       const computed = [];
       for (const { display, dates } of players.values()) {
-        const playedDates = Array.from(dates).sort();           // ISO → lexicographic sort OK
-        const lastPlayIso = playedDates[playedDates.length - 1]; // derive from actual date set
+        const playedDates = Array.from(dates).sort();
+        const lastPlayIso = playedDates[playedDates.length - 1];
         const { current, max } = calculateCurrentAndMaxStreak(playedDates);
         const gap = daysBetweenISO(lastPlayIso, today);
-        const activeCurrent = gap <= graceDays ? current : 0;    // show as 0 if not recent
+        const activeCurrent = gap <= graceDays ? current : 0;
         computed.push([display, { current: activeCurrent, max }]);
       }
 
-      // Top 5: current desc, then max desc, then name asc
       const top = computed
         .sort((a, b) => {
           const ca = a[1].current, cb = b[1].current;

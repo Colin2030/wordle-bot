@@ -2,7 +2,8 @@
 // Recomputes streaks from raw rows, robust date+name normalisation, HTML-safe output.
 // Shows an "active" current streak ONLY if last play was within graceDays (today or yesterday).
 
-const { calculateCurrentAndMaxStreak } = require('../streakUtils');
+const { calculateCurrentAndMaxStreak } = require('../utils/streakUtils');
+const { getLocalDateString } = require('../utils'); // ← UK-aligned "today"
 
 module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
   // --- Config ---
@@ -18,10 +19,9 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
 
   function canonicalName(raw = '') {
     const display = String(raw).normalize('NFKC').replace(/\s+/g, ' ').trim();
-    // Strip emojis & punctuation for the *key* so “Alex”, “Alex 🤖”, “Alex-” group together.
     const key = display
-      .replace(/\p{Extended_Pictographic}/gu, '')
-      .replace(/[^\p{L}\p{N}\s]/gu, '')
+      .replace(/\p{Extended_Pictographic}/gu, '') // strip emojis for key
+      .replace(/[^\p{L}\p{N}\s]/gu, '')           // strip punctuation/symbols for key
       .replace(/\s+/g, ' ')
       .trim()
       .toLowerCase();
@@ -31,9 +31,7 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
   function isoDate(raw) {
     if (raw == null) return null;
     const s = String(raw).trim();
-
-    // Already ISO YYYY-MM-DD?
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // already ISO
 
     // Google Sheets serial (days since 1899-12-30)
     const n = Number(s);
@@ -46,7 +44,7 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
       return `${y}-${m}-${day}`;
     }
 
-    // Fallback parse
+    // Fallback parse (best effort)
     const d = new Date(s);
     if (isNaN(d)) return null;
     const y = d.getFullYear();
@@ -55,18 +53,15 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
     return `${y}-${m}-${day}`;
   }
 
-  function daysBetweenISO(aIso, bIso) {
-    const a = new Date(aIso); a.setHours(0,0,0,0);
-    const b = new Date(bIso); b.setHours(0,0,0,0);
-    return Math.round((b - a) / 86400000);
+  // timezone-safe day math: compare ISO dates in UTC (no local tz drift)
+  function isoToEpochDays(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+    if (!m) return NaN;
+    const y = Number(m[1]), mo = Number(m[2]) - 1, d = Number(m[3]);
+    return Math.floor(Date.UTC(y, mo, d) / 86400000);
   }
-
-  function todayISO() {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+  function daysBetweenISO(aIso, bIso) {
+    return isoToEpochDays(bIso) - isoToEpochDays(aIso);
   }
 
   // /streakleaderboard (case-insensitive, with optional @mention)
@@ -96,9 +91,7 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
         const attempts = String(attemptsRaw ?? '').trim().toUpperCase();
         const score = Number(scoreRaw);
 
-        // Consider "played" only when an actual game was completed:
-        // - attempts != 'X' (completed), OR
-        // - score > 0 (belt-and-braces for any legacy rows)
+        // Treat as "played" only for completed games (or clearly positive scored legacy rows)
         const played = attempts !== 'X' || (Number.isFinite(score) && score > 0);
         if (!played) continue;
 
@@ -112,16 +105,16 @@ module.exports = function streakLeaderboard(bot, getAllScores, groupChatId) {
         return;
       }
 
-      const today = todayISO();
+      const today = getLocalDateString(new Date()); // UK-tz aligned
 
       // Recompute streaks and apply recency gate for "active current"
       const computed = [];
       for (const { display, dates } of players.values()) {
-        const playedDates = Array.from(dates).sort();       // ISO sorts lexicographically = chronologically
-        const lastPlayIso = playedDates[playedDates.length - 1]; // derive last play from the actual set
+        const playedDates = Array.from(dates).sort();           // ISO → chronological
+        const lastPlayIso = playedDates[playedDates.length - 1]; // derive from actual dates used
         const { current, max } = calculateCurrentAndMaxStreak(playedDates);
         const gap = daysBetweenISO(lastPlayIso, today);
-        const activeCurrent = gap <= graceDays ? current : 0;    // gate by recency (today or yesterday)
+        const activeCurrent = gap <= graceDays ? current : 0;    // show as 0 if not recent
         computed.push([display, { current: activeCurrent, max }]);
       }
 
