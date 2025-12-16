@@ -1,26 +1,24 @@
 {
   "name": "telegram-wordle-bot",
   "version": "1.0.0",
-  "description": "",
+  "private": true,
+  "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prestart": "node --check openaiReaction.js && node --check handleSubmission.js && node --check commands/debugStreak.js && node --check commands/recalcStreaks.js && node --check commands/streakLeaderboard.js && node --check schedules/streakSaturdayCron.js",
+    "start": "node index.js"
   },
-  "scripts": {
-  "prestart": "node --check openaiReaction.js && node --check handleSubmission.js && node --check commands/debugStreak.js && node --check commands/recalcStreaks.js && node --check commands/streakLeaderboard.js && node --check schedules/streakSaturdayCron.js",
-  "start": "node index.js"
-}
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
-    "chartjs-node-canvas": "^5.0.0",
-    "dotenv": "^16.5.0",
-    "express": "^5.1.0",
-    "googleapis": "^148.0.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
     "node-cron": "^3.0.3",
     "node-telegram-bot-api": "^0.66.0",
-    "openai": "^4.24.0"
+    "openai": "^4.75.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.14.0"
   }
 }
