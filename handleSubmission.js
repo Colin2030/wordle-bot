@@ -1,5 +1,5 @@
-// handleSubmission.js — rivals (today + weekly ranks) + robust streaks + tidy scoring
-// ----------------------------------------------------------------------------------
+// handleSubmission.js — robust streaks (epoch-day math + UK today anchor) + rivals (today + weekly ranks)
+// ------------------------------------------------------------------------------------------------------
 
 const {
   getAllScores,
@@ -14,22 +14,58 @@ const { reactionThemes } = require('./fallbackreactions');
 const playerProfiles = require('./playerProfiles');
 
 const groupChatId = process.env.GROUP_CHAT_ID;
+const RIVAL_TOLERANCE = Number(process.env.RIVAL_TOLERANCE ?? 0.5);
 
 console.log('🧪 Scoring logic: Wordle Bot v2.0 with decimal scoring is active');
+
+/* ----------------- Date helpers (robust) ----------------- */
+
+/**
+ * Normalise incoming sheet "date" values to ISO YYYY-MM-DD
+ * - Accepts ISO, Google Sheets serials, and other parseable strings.
+ */
+function isoDate(raw) {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+
+  // Already ISO?
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  // Google Sheets serial (days since 1899-12-30)
+  const n = Number(s);
+  if (Number.isFinite(n) && n > 25569 && n < 60000) {
+    const ms = (n - 25569) * 86400000;
+    const d = new Date(ms);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  // Fallback: native parse
+  const d = new Date(s);
+  if (isNaN(d)) return null;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 /* ----------------- Rival / leaderboard helpers ----------------- */
 
 /**
- * Build today's leaderboard totals and remember "latest index" per player for tie-breaks.
+ * Build today's leaderboard totals with *normalised* dates.
  * Supports injecting the current player's score so the board reflects this submission.
  */
-function buildTodayLeaderboard(allScores, today, injectPlayer = null, injectScore = 0) {
+function buildTodayLeaderboard(allScores, todayIso, injectPlayer = null, injectScore = 0) {
   const totals = new Map();  // player -> number
   const lastIdx = new Map(); // player -> last seen row index for today
 
   for (let i = 0; i < allScores.length; i++) {
-    const [date, p, s] = allScores[i];
-    if (date !== today) continue;
+    const [dateRaw, p, s] = allScores[i];
+    const dateIso = isoDate(dateRaw);
+    if (dateIso !== todayIso) continue;
+
     const val = parseFloat(s);
     if (!Number.isFinite(val)) continue;
     totals.set(p, (totals.get(p) || 0) + val);
@@ -50,7 +86,7 @@ function buildTodayLeaderboard(allScores, today, injectPlayer = null, injectScor
   return { sorted, totals, lastIdx };
 }
 
-/** Monday 00:00:00 of this week */
+/** Monday 00:00:00 of this week (local server clock; fine for range slicing) */
 function startOfThisWeek(d = new Date()) {
   const x = new Date(d);
   const day = x.getDay(); // 0=Sun..6=Sat
@@ -69,13 +105,20 @@ function endOfThisWeek(d = new Date()) {
   return e;
 }
 
-/** Build weekly totals from allScores within [start,end] */
+/**
+ * Build weekly totals using *normalised* dates.
+ * Only rows with parseable dates are considered.
+ */
 function buildWeeklyLeaderboard(allScores, start, end) {
   const totals = new Map(); // player -> total points
   for (const row of allScores) {
-    const [dateIso, p, s] = row;
-    const dt = new Date(dateIso);
+    if (!Array.isArray(row) || row.length < 3) continue;
+    const [dateRaw, p, s] = row;
+    const iso = isoDate(dateRaw);
+    if (!iso) continue;
+    const dt = new Date(iso);
     if (!(dt >= start && dt <= end)) continue;
+
     const val = parseFloat(s);
     if (!Number.isFinite(val)) continue;
     totals.set(p, (totals.get(p) || 0) + val);
@@ -103,14 +146,14 @@ module.exports = async function handleSubmission(bot, msg) {
   const now = new Date();
   const isFriday = now.getDay() === 5;
   const numAttempts = attempts === 'X' ? 7 : parseInt(attempts, 10);
-  const today = getLocalDateString(now);
+  const today = getLocalDateString(now); // UK-aligned "today"
   const isArchive = /archive/i.test(cleanText);
 
   const allScores = await getAllScores();
 
-  // Prevent duplicate submission for today (non-archive)
+  // Prevent duplicate submission for today (non-archive), using normalised dates
   if (!isArchive) {
-    const alreadySubmitted = allScores.some(([date, p]) => date === today && p === player);
+    const alreadySubmitted = allScores.some(([dateRaw, p]) => isoDate(dateRaw) === today && p === player);
     if (alreadySubmitted) {
       await bot.sendMessage(
         chatId,
@@ -183,19 +226,31 @@ module.exports = async function handleSubmission(bot, msg) {
 
   const formattedScore = Number(finalScore.toFixed(1));
 
-  /* -------- Streaks (anchor to today for submission reply) -------- */
-  // Build playedDates from sheet (attempts !== 'X'); push today if this isn’t an Archive post.
-  const playedDates = allScores
-    .filter(([date, p, , , a]) => p === player && a !== 'X')
-    .map(([date]) => date);
+  /* -------- Streaks (anchor to UK "today" for submission reply) -------- */
+  // Build playedDates from sheet (completed games only), normalised to ISO
+  const playedDates = [];
+  for (const row of allScores) {
+    if (!Array.isArray(row) || row.length < 5) continue;
+    const [dateRaw, p, scoreRaw, , aRaw] = row;
+    if (p !== player) continue;
 
+    const attemptsPrev = String(aRaw ?? '').trim().toUpperCase();
+    const scorePrev = Number(scoreRaw);
+    const completed = attemptsPrev !== 'X' || (Number.isFinite(scorePrev) && scorePrev > 0);
+    if (!completed) continue;
+
+    const iso = isoDate(dateRaw);
+    if (iso) playedDates.push(iso);
+  }
+
+  // If this isn’t an Archive, add the UK 'today' explicitly so anchor can't miss
   if (!isArchive) {
-    playedDates.push(today); // ensure today's play counts
+    playedDates.push(today);
   }
 
   const { current: streak, max: maxStreak } = calculateCurrentAndMaxStreak(
     playedDates,
-    { anchorToday: !isArchive } // only anchor when this is today's real submission
+    { anchorToday: !isArchive, todayIso: today } // ← anchor against your UK date
   );
 
   // Log score unless it's an Archive run
@@ -209,7 +264,7 @@ module.exports = async function handleSubmission(bot, msg) {
     );
   }
 
-  /* -------- Rival (today + weekly rank aware) -------- */
+  /* -------- Rival (today + weekly rank aware; all date-normalised) -------- */
   const { sorted: todaySorted, totals: todayTotals } =
     buildTodayLeaderboard(allScores, today, player, formattedScore);
 
@@ -220,7 +275,7 @@ module.exports = async function handleSubmission(bot, msg) {
     const [rivalName, rivalTodayTotal] = todaySorted[idx - 1];
     const meTodayTotal = todayTotals.get(player) || 0;
     const delta = meTodayTotal - rivalTodayTotal; // +ve => you're ahead
-    const relation = Math.abs(delta) < 0.5 ? 'tied' : (delta > 0 ? 'ahead' : 'behind');
+    const relation = Math.abs(delta) < RIVAL_TOLERANCE ? 'tied' : (delta > 0 ? 'ahead' : 'behind');
 
     // Weekly ranks (Mon..Sun including any logged days this week)
     const weekStart = startOfThisWeek(now);
@@ -269,20 +324,24 @@ module.exports = async function handleSubmission(bot, msg) {
     reaction = pool.length ? pool[Math.floor(Math.random() * pool.length)] : 'Nice try!';
   }
 
-  /* -------- Badges, crowns, medals -------- */
+  /* -------- Badges, crowns, medals (date-normalised where needed) -------- */
   const isChampion = await isMonthlyChampion(player);
 
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   const yestDate = getLocalDateString(yesterday);
 
-  // Yesterday medals (🥇🥈🥉)
+  // Yesterday medals (🥇🥈🥉) with normalised dates
   const yestTotals = allScores
-    .filter(([date]) => date === yestDate)
+    .map(([dateRaw, p, s]) => [isoDate(dateRaw), p, s])
+    .filter(([iso]) => iso === yestDate)
     .reduce((acc, [_, p, s]) => {
-      acc[p] = (acc[p] || 0) + parseFloat(s);
+      const v = parseFloat(s);
+      if (!Number.isFinite(v)) return acc;
+      acc[p] = (acc[p] || 0) + v;
       return acc;
     }, {});
+
   const sortedYest = Object.entries(yestTotals).sort((a, b) => b[1] - a[1]);
   const [first, second, third] = sortedYest.map(([p]) => p);
   let dailyMedal = '';
@@ -290,7 +349,7 @@ module.exports = async function handleSubmission(bot, msg) {
   else if (player === second) dailyMedal = ' 🥈';
   else if (player === third) dailyMedal = ' 🥉';
 
-  // Last week's crown (👑)
+  // Last week's crown (👑) with normalised dates
   const lastMonday = new Date(now);
   lastMonday.setDate(now.getDate() - ((now.getDay() + 6) % 7) - 7);
   lastMonday.setHours(0, 0, 0, 0);
@@ -299,14 +358,17 @@ module.exports = async function handleSubmission(bot, msg) {
   lastSunday.setHours(23, 59, 59, 999);
 
   const lastWeekTotals = allScores
-    .filter(([date]) => {
-      const d = new Date(date);
-      return d >= lastMonday && d <= lastSunday;
-    })
-    .reduce((acc, [_, p, s]) => {
-      acc[p] = (acc[p] || 0) + parseFloat(s);
+    .map(([dateRaw, p, s]) => [isoDate(dateRaw), p, s])
+    .filter(([iso]) => !!iso)
+    .reduce((acc, [iso, p, s]) => {
+      const d = new Date(iso);
+      if (d >= lastMonday && d <= lastSunday) {
+        const v = parseFloat(s);
+        if (Number.isFinite(v)) acc[p] = (acc[p] || 0) + v;
+      }
       return acc;
     }, {});
+
   const topWeekly = Object.entries(lastWeekTotals).sort((a, b) => b[1] - a[1])[0]?.[0];
   const weeklyCrown = topWeekly === player ? ' 👑' : '';
   const trophy = isChampion ? ' 🏆' : '';
@@ -336,7 +398,7 @@ module.exports = async function handleSubmission(bot, msg) {
   /* -------- Optional: Milestone streak pings -------- */
   const milestones = {
     10: "🔥 You've hit a 10-day streak! Double digits!",
-    20: '🔥🔥 20 days? — nice!',
+    20: '🔥🔥 Two blazing weeks — nice!',
     30: '🔥🔥🔥 One month strong. Respect.',
     50: '🔥🔥🔥🔥 50 days! Unreasonably committed.',
     75: '🔥🔥🔥🔥🔥 75 days — are you okay?',
