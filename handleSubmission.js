@@ -376,6 +376,8 @@ module.exports = async function handleSubmission(bot, msg) {
   // Streak flair (based on the anchored streak above)
   let streakEmoji = '';
   if (streak === 1) streakEmoji = ' 💩';
+  else if (streak >= 365) streakEmoji = ' 💫';
+  else if (streak >= 300) streakEmoji = ' 💥💥💥💥';
   else if (streak >= 200) streakEmoji = ' 💥💥💥';
   else if (streak >= 150) streakEmoji = ' 💥💥';
   else if (streak >= 100) streakEmoji = ' 💥';
@@ -405,6 +407,9 @@ module.exports = async function handleSubmission(bot, msg) {
     100: '💥 Century! Wordle royalty.',
     150: '💥💥 150 days — ridiculous stamina.',
     200: '💥💥💥 200 days — seek help (or a trophy).',
+	300: '💥💥💥💥 300 days — This is getting weird.',
+	365: '💫 You lasted a year! Happy anniversary sweetcheeks xx.',
+	
   };
 
   if (milestones[streak]) {

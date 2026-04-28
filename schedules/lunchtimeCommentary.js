@@ -3,30 +3,30 @@ const { getAllScores } = require('../utils');
 
 module.exports = function(bot, getAllScores, groupChatId) {
   const weekdayNudges = [
-    "Not played yet? There’s still time to flex those braincells! 🧠",
-    "Don’t let the leaderboard scare you — take your shot! 🎯",
-    "Step away from your spreadsheet and Wordle it out. ⌨️🧠",
-    "Lunch tastes better after a Wordle win. 🍽️🟩",
-    "Brains need food *and* puzzles — feed yours. 🧠🥪",
-    "Top scores still within reach — don’t let Trish win again. 😉",
-    "Procrastinate productively: solve a Wordle. ✅",
-    "Even guessing wildly is better than not playing. 🎲",
-    "One guess to rule them all… will it be yours? 💍🟩",
-    "We believe in you. Probably. Go Wordle! ✨"
-  ];
+  "Oh look, another day to pretend you’re good at Wordle. Prove it. 🧠",
+  "Leaderboard looking a bit… intimidating? Fix that. 🎯",
+  "You’ve spent longer deciding lunch. Just play already. 🍔🟩",
+  "No entry yet? Bold strategy. Let’s see how that works out. 😏",
+  "Your future self would like one (1) Wordle victory, please. ⏳",
+  "Someone worse than you has already posted. Think about that. 💀",
+  "It’s literally five guesses. You’ve done harder things. Probably. 🤷",
+  "Stop lurking. Start guessing. Minimal effort, maximum smugness. 😌",
+  "You miss 100% of the Wordles you don’t play. – Someone wise-ish 🎤",
+  "Go on, give the leaderboard something to talk about. 👀"
+];
 
-  const fridayNudges = [
-    "It's DOUBLE POINTS FRIDAY. If you're not Wordling, you're losing. 🔥",
-    "Friday Wordles hit different — drop everything and flex. 🧠💪",
-    "Still not posted? Your enemies thank you. 😏",
-    "Don’t let Darren win again. Seriously. Do something. 😤",
-    "Double points. Infinite regret if you forget. 🎯",
-    "Big plays only. The leaderboard won’t humble itself. 👑",
-    "This is your villain origin story if you skip today. 😈",
-    "We are judging you. Silently. But fiercely. 🔍",
-    "Fridays are for Wordle legends. Not lurkers. 🕶️🟩",
-    "Show up. Guess big. Break streaks. Be epic. 💥"
-  ];
+const fridayNudges = [
+  "DOUBLE POINTS FRIDAY and you’re still hesitating? Embarrassing. 🔥",
+  "This is where legends rise and excuses quietly log off. 🧠👑",
+  "Skip today and we *will* remember. Not fondly. 😌",
+  "Double points means double the glory… or double the shame. Your call. 🎯",
+  "If you’re not playing today, you’re basically donating points. 💸",
+  "Main character energy only. Don’t fumble it now. 🎬",
+  "This leaderboard isn’t going to climb itself. Move. 🧗",
+  "Imagine not capitalising on double points. Couldn’t be you… right? 😬",
+  "Big talk all week just to ghost on Friday? Yikes. 😏",
+  "Go make it hurt for everyone else. That’s the spirit. 💥"
+];
 
   cron.schedule('0 13 * * *', () => {
     const delayMs = Math.floor(Math.random() * 300000); // up to 5 minutes
